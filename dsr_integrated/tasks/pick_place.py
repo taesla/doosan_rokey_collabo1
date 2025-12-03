@@ -184,7 +184,14 @@ class PickPlaceTask(BaseTask):
         
         # 1) HOME_Z 높이에서 픽업 XY로 이동
         self._log("STEP: HOME_Z 높이에서 컨베이어 픽업 위치로 이동")
-        self._movel_with_estop_check([px, py, hz, prx, pry, prz], vel=VELOCITY_MOVE, acc=ACCEL_MOVE)
+        if not self._movel_with_estop_check([px, py, hz, prx, pry, prz], vel=VELOCITY_MOVE, acc=ACCEL_MOVE):
+            self._log("[ERROR] 픽업 위치 이동 실패")
+            return False
+        
+        # ★ 충돌/비상정지 확인 - Force Control 활성화 전에 체크
+        if self.state.is_emergency_stopped():
+            self._log("[ABORT] 비상정지 상태 - Force Control 건너뜀")
+            return False
         
         # 2) Compliance 모드 설정
         self._log("STEP: Compliance Control 활성화 중...")

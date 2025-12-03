@@ -485,6 +485,14 @@ class DlarSortNode(Node):
         
         self.get_logger().warn('⚠️ [SORT] 충돌 감지됨!')
         
+        # ★★★ 즉시 Force Control 해제 (pick_place와 충돌 방지) ★★★
+        try:
+            self.robot.release_force()
+            self.robot.disable_compliance()
+            self.get_logger().info('[SORT] Force Control 해제 완료')
+        except Exception as e:
+            self.get_logger().warn(f'[SORT] Force Control 해제 실패: {e}')
+        
         # Web UI에 충돌 감지 알림
         self._publish_recovery_status('detected', '충돌 감지 - 자동 복구 시작', 0)
         
