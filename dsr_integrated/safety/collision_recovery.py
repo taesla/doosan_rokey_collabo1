@@ -456,7 +456,21 @@ class CollisionRecovery:
                 
                 # 3. Jog Z+ (바닥 충돌 시)
                 if needs_jog:
+                    # 바닥 충돌 + 그립 상태면 먼저 그리퍼 열기 (물체 끼임 방지)
+                    if was_gripping and self.robot:
+                        self.node.get_logger().info('[Recovery] 바닥 충돌 - 그리퍼 열기 (물체 끼임 방지)')
+                        self.robot.grip_open()
+                        time.sleep(0.3)
+                        was_gripping = False  # 더 이상 그립 상태가 아님
+                    
                     self.jog_up()
+                    
+                    # Jog 후 상태 확인 - 아직 SAFE_STOP/SAFE_OFF면 재시도
+                    time.sleep(0.3)
+                    state = self.state_monitor.get_robot_state()
+                    if self.state_monitor.is_safe_stop(state) or self.state_monitor.is_safe_off(state):
+                        self.node.get_logger().warn(f'[Recovery] Jog 후에도 비정상: {state_name(state)} → 재시도')
+                        continue
                 else:
                     self._notify_progress('Jog 생략', 50)
                 
