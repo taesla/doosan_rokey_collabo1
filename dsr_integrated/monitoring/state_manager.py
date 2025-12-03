@@ -122,6 +122,10 @@ class StateManager:
         self.state.is_running = False
         self.save()
     
+    def request_stop(self):
+        """작업 정지 요청 (stop의 별칭)"""
+        self.stop()
+    
     def emergency_stop(self):
         """비상정지 (일시 정지, 이어서 재개 가능)"""
         self.state.emergency_stopped = True

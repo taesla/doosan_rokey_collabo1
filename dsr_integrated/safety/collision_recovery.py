@@ -230,15 +230,19 @@ class CollisionRecovery:
         return result
     
     def _move_to_home(self) -> bool:
-        """홈 위치로 이동 (복구 완료 후) - 안전 버전 사용"""
+        """홈 위치로 이동 (복구 완료 후)"""
         if self.robot is None:
             self.node.get_logger().warn('[Recovery] robot_controller가 없어서 홈 이동 불가')
             return False
         
         try:
             self.node.get_logger().info('[Recovery] 홈 위치로 이동 시작...')
-            # 안전한 movel 사용 (충돌 시 재복구)
-            success = self._safe_movel(HOME_POSITION, vel=VELOCITY_MOVE, acc=ACCEL_MOVE, max_retries=3)
+            
+            # movel 전 상태 확인 및 필요시 복구
+            if not self._ensure_standby():
+                return False
+            
+            success = self.robot.movel(HOME_POSITION, vel=VELOCITY_MOVE, acc=ACCEL_MOVE)
             
             if success:
                 self.node.get_logger().info('[Recovery] 홈 위치 도착')
@@ -250,11 +254,63 @@ class CollisionRecovery:
             self.node.get_logger().error(f'[Recovery] 홈 이동 예외: {e}')
             return False
     
+    def _ensure_standby(self) -> bool:
+        """
+        movel 전 STANDBY 상태 보장
+        SAFE_STOP/SAFE_OFF 상태면 빠른 복구 수행
+        
+        Returns:
+            STANDBY 상태 여부
+        """
+        state = self.state_monitor.get_robot_state()
+        
+        if self.state_monitor.is_standby(state):
+            return True
+        
+        self.node.get_logger().warn(f'[Recovery] movel 전 비정상 상태: {state_name(state)} → 빠른 복구')
+        
+        try:
+            # SAFE_STOP 리셋
+            if self.state_monitor.is_safe_stop(state):
+                self._call_control(CTRL_RESET_SAFE_STOP)
+                time.sleep(0.3)
+            
+            # RECOVERY 진입
+            self._call_safety(2, 0)
+            time.sleep(0.2)
+            
+            # RECOVERY 완료
+            self._call_safety(2, 2)
+            time.sleep(0.3)
+            
+            # RECOVERY 해제
+            self._call_control(CTRL_RESET_RECOVERY)
+            time.sleep(0.3)
+            
+            # 서보 ON
+            state = self.state_monitor.get_robot_state()
+            if not self.state_monitor.is_standby(state):
+                self._call_control(CTRL_SERVO_ON)
+                time.sleep(0.5)
+            
+            state = self.state_monitor.get_robot_state()
+            if self.state_monitor.is_standby(state):
+                self.node.get_logger().info('[Recovery] ✅ 빠른 복구 성공')
+                return True
+            else:
+                self.node.get_logger().warn(f'[Recovery] ⚠️ 빠른 복구 실패: {state_name(state)}')
+                return False
+                
+        except Exception as e:
+            self.node.get_logger().error(f'[Recovery] ensure_standby 예외: {e}')
+            return False
+    
     def _place_and_go_home(self) -> bool:
         """
         그립 상태에서 복구: 컨베이어 시작점에 물체 내려놓고 홈으로 이동
         
         ★ 복구 중 새 충돌 콜백은 sort_node에서 무시됨 (is_recovering 체크)
+        ★ 각 movel 전에 _ensure_standby()로 상태 확인
         
         Returns:
             성공 여부
@@ -266,6 +322,8 @@ class CollisionRecovery:
         try:
             # 1. 먼저 안전 높이로 올리기 (현재 위치에서)
             self.node.get_logger().info('[Recovery] 안전 높이로 상승...')
+            if not self._ensure_standby():
+                return False
             current_pos = self.robot.get_current_posx()
             if current_pos:
                 safe_pos = list(current_pos)
@@ -274,12 +332,16 @@ class CollisionRecovery:
             
             # 2. 컨베이어 시작점 위로 이동 (안전 높이 유지)
             self._notify_progress('컨베이어 위치로 이동 중...', 70)
+            if not self._ensure_standby():
+                return False
             approach_pos = CONVEY_START_POINT.copy()
             approach_pos[2] = HOME_POSITION[2]  # 안전 높이
             self.robot.movel(approach_pos, vel=VELOCITY_MOVE, acc=ACCEL_MOVE)
             
             # 3. 컨베이어 시작점으로 하강
             self._notify_progress('물체 내려놓기...', 80)
+            if not self._ensure_standby():
+                return False
             self.robot.movel(CONVEY_START_POINT, vel=VELOCITY_MOVE/2, acc=ACCEL_MOVE/2)
             
             # 4. 그리퍼 열기 (물체 내려놓기)
@@ -287,6 +349,8 @@ class CollisionRecovery:
             time.sleep(0.5)
             
             # 5. 위로 복귀
+            if not self._ensure_standby():
+                return False
             self.robot.movel(approach_pos, vel=VELOCITY_MOVE, acc=ACCEL_MOVE)
             
             # 6. 그리퍼 닫기
@@ -294,6 +358,8 @@ class CollisionRecovery:
             
             # 7. 홈으로 이동
             self._notify_progress('홈 위치로 이동 중...', 90)
+            if not self._ensure_standby():
+                return False
             success = self.robot.movel(HOME_POSITION, vel=VELOCITY_MOVE, acc=ACCEL_MOVE)
             
             if success:

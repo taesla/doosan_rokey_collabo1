@@ -38,7 +38,7 @@ from ..safety.safety_manager import is_safe_to_move, check_safety
 # 웹 모듈 임포트
 from ..web.data_store import (
     robot_data, sort_status, conveyor_status,
-    ui_state, logs, add_log
+    ui_state, logs, add_log, set_logistics_broadcast_callback
 )
 from ..web.routes import routes_bp
 from ..web.socket_handlers import register_socket_handlers
@@ -103,6 +103,14 @@ def get_ros_node():
 
 # Socket 핸들러 등록
 register_socket_handlers(socketio, get_ros_node)
+
+
+# 물류 상태 브로드캐스트 콜백 등록
+def _broadcast_logistics_status(data):
+    """물류 상태 변경 시 소켓으로 브로드캐스트"""
+    socketio.emit('logistics_status', data)
+
+set_logistics_broadcast_callback(_broadcast_logistics_status)
 
 
 class WebServerNode(Node):

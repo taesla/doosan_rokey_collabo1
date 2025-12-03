@@ -5,6 +5,16 @@
 """
 
 from datetime import datetime, timezone, timedelta
+from typing import Callable, Optional
+
+# 물류 상태 변경 시 호출될 콜백 (소켓 브로드캐스트용)
+_logistics_broadcast_callback: Optional[Callable] = None
+
+
+def set_logistics_broadcast_callback(callback: Callable):
+    """물류 상태 브로드캐스트 콜백 등록"""
+    global _logistics_broadcast_callback
+    _logistics_broadcast_callback = callback
 
 # ============================================
 # 로봇 상태 데이터
@@ -197,6 +207,13 @@ def update_logistics_status(
         logistics_status['z_touch'] = z_touch
     if pick_ok is not None:
         logistics_status['pick_ok'] = pick_ok
+    
+    # 콜백 호출 (소켓 브로드캐스트)
+    if _logistics_broadcast_callback:
+        try:
+            _logistics_broadcast_callback(logistics_status)
+        except Exception as e:
+            print(f"[data_store] logistics broadcast error: {e}")
 
 
 def reset_logistics_status():
