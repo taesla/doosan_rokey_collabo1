@@ -11,7 +11,7 @@ from typing import Optional, Dict, Any
 from rclpy.node import Node
 from dsr_msgs2.srv import MoveJoint
 
-from ..safety_manager import SafetyManager
+from ..safety import SafetyManager
 from ..web.data_store import add_log
 
 

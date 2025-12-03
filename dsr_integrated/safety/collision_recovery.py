@@ -33,7 +33,7 @@ from ..config.constants import (
     CTRL_RESET_SAFE_STOP, CTRL_SERVO_ON, CTRL_RESET_RECOVERY,
     RECOVERY_Z_THRESHOLD, RECOVERY_JOG_TIME, RECOVERY_JOG_SPEED, RECOVERY_JOG_AXIS_Z,
 )
-from .state_monitor import RobotStateMonitor, state_name
+from ..monitoring.state_monitor import RobotStateMonitor, state_name
 
 
 class CollisionRecovery:

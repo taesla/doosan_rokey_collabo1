@@ -7,7 +7,7 @@ from .data_store import (
     robot_data, sort_status, conveyor_status,
     ui_state, logs, add_log
 )
-from ..safety_manager import SafetyManager
+from ..safety import SafetyManager
 
 
 def register_socket_handlers(socketio, get_ros_node):

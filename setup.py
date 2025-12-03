@@ -30,14 +30,14 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            # 리팩토링된 노드
-            'sort_node = dsr_integrated.sort_node:main',
-            'server_node = dsr_integrated.server_node:main',
+            # 리팩토링된 노드 (새 경로)
+            'sort_node = dsr_integrated.nodes.sort_node:main',
+            'server_node = dsr_integrated.nodes.server_node:main',
             # 테스트 유틸리티
             'test_recovery = dsr_integrated.test_recovery:main',
             # 호환성을 위한 별칭
-            'dlar_sort_node = dsr_integrated.sort_node:main',
-            'web_server_node = dsr_integrated.server_node:main',
+            'dlar_sort_node = dsr_integrated.nodes.sort_node:main',
+            'web_server_node = dsr_integrated.nodes.server_node:main',
         ],
     },
 )

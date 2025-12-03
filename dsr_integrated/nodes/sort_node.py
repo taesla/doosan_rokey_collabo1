@@ -20,23 +20,24 @@ from std_srvs.srv import Trigger, SetBool
 from std_msgs.msg import String, Bool
 
 # YAML 설정 로더
-from .config.yaml_loader import get_config
+from ..config.yaml_loader import get_config
 
 # 상수 임포트 (YAML에 없는 것들만)
-from .config.constants import (
+from ..config.constants import (
     PHASE_PICK, PHASE_PLACE,
     DR_BASE, DR_TOOL, DR_FC_MOD_ABS,
 )
-from .config.positions import HOME_POSITION
+from ..config.positions import HOME_POSITION
 
-from .robot_controller import RobotController
-from .state_manager import StateManager
-from .conveyor_handler import ConveyorHandler
-from .firebase_handler import FirebaseHandler
-from .tasks.pick_place import PickPlaceTask
+from ..core.robot_controller import RobotController
+from ..monitoring.state_manager import StateManager
+from ..integration.conveyor import ConveyorHandler
+from ..integration.firebase import FirebaseHandler
+from ..tasks.pick_place import PickPlaceTask
 
 # 충돌 복구 모듈
-from .recovery import RobotStateMonitor, CollisionRecovery
+from ..monitoring import RobotStateMonitor
+from ..safety import CollisionRecovery
 
 # 1차 적재 사이클 수 (robot_pick_node 기준)
 MAX_CYCLES = 9

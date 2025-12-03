@@ -32,22 +32,23 @@ from flask import Flask
 from flask_socketio import SocketIO
 
 # SafetyManager 임포트
-from .safety_manager import SafetyManager, is_safe_to_move, check_safety
+from ..safety import SafetyManager
+from ..safety.safety_manager import is_safe_to_move, check_safety
 
 # 웹 모듈 임포트
-from .web.data_store import (
+from ..web.data_store import (
     robot_data, sort_status, conveyor_status,
     ui_state, logs, add_log
 )
-from .web.routes import routes_bp
-from .web.socket_handlers import register_socket_handlers
-from .web import firebase_threads
+from ..web.routes import routes_bp
+from ..web.socket_handlers import register_socket_handlers
+from ..web import firebase_threads
 
 # Tasks 모듈 임포트
-from .tasks.pendulum import PendulumController
+from ..tasks.pendulum import PendulumController
 
 # 상태 모니터링 모듈 임포트
-from .web.robot_monitor import (
+from ..web.robot_monitor import (
     RobotStatusMonitor,
     joint_state_callback,
     sort_status_callback,

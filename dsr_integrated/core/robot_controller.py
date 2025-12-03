@@ -24,7 +24,7 @@ from dsr_msgs2.srv import (
     ReleaseForce,
 )
 
-from .config.constants import (
+from ..config.constants import (
     ROBOT_ID,
     DR_BASE, DR_TOOL,
     DR_MV_MOD_ABS, DR_FC_MOD_ABS,

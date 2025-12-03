@@ -9,7 +9,7 @@ from rclpy.node import Node
 from rclpy.callback_groups import ReentrantCallbackGroup
 from std_msgs.msg import String, Int32
 
-from .config.constants import CONVEYOR_DETECT, CONVEYOR_RUNNING
+from ...config.constants import CONVEYOR_DETECT, CONVEYOR_RUNNING
 
 
 class ConveyorHandler:

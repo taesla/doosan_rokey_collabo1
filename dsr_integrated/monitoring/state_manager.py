@@ -11,8 +11,8 @@ from dataclasses import dataclass, field, asdict
 from typing import Optional
 from rclpy.node import Node
 
-from .config.constants import PHASE_PICK, STATE_FILE
-from .config.positions import HOME_POSITION
+from ..config.constants import PHASE_PICK, STATE_FILE
+from ..config.positions import HOME_POSITION
 
 
 @dataclass
