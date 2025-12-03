@@ -99,6 +99,25 @@ sort_status = {
 }
 
 # ============================================
+# 물류 적재 상태 데이터 (robot_pick_node 호환)
+# ============================================
+logistics_status = {
+    # 분류별 적재 개수
+    'stack_count': {
+        'SMALL': 0,
+        'MEDIUM': 0,
+        'LONG': 0
+    },
+    # 적재 이력
+    'placed_boxes': [],
+    # Pick 상태
+    'z_touch': 0.0,
+    'pick_ok': False,
+    # 총 개수
+    'total_count': 0,
+}
+
+# ============================================
 # 컨베이어 상태 데이터
 # ============================================
 conveyor_status = {
@@ -160,6 +179,33 @@ def reset_robot_data():
 def update_sort_status(data: dict):
     """분류 상태 업데이트"""
     sort_status.update(data)
+
+
+def update_logistics_status(
+    stack_count: dict = None,
+    placed_boxes: list = None,
+    z_touch: float = None,
+    pick_ok: bool = None
+):
+    """물류 적재 상태 업데이트"""
+    if stack_count is not None:
+        logistics_status['stack_count'] = stack_count.copy()
+        logistics_status['total_count'] = sum(stack_count.values())
+    if placed_boxes is not None:
+        logistics_status['placed_boxes'] = placed_boxes.copy()
+    if z_touch is not None:
+        logistics_status['z_touch'] = z_touch
+    if pick_ok is not None:
+        logistics_status['pick_ok'] = pick_ok
+
+
+def reset_logistics_status():
+    """물류 적재 상태 초기화"""
+    logistics_status['stack_count'] = {'SMALL': 0, 'MEDIUM': 0, 'LONG': 0}
+    logistics_status['placed_boxes'] = []
+    logistics_status['z_touch'] = 0.0
+    logistics_status['pick_ok'] = False
+    logistics_status['total_count'] = 0
 
 
 def update_conveyor_status(status: str = None, code: int = None):

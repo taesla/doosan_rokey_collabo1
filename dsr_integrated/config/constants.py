@@ -2,6 +2,8 @@
 """
 로봇 제어 상수 모듈
 Force 센서, 속도, 오프셋 등 모든 상수값 관리
+
+※ robot_pick_node/dlar_sort/config.py 기준으로 업데이트됨
 """
 import os
 
@@ -14,10 +16,15 @@ ROBOT_MODEL = "m0609"
 # =========================================
 # Force 센서 설정 (robot_pick_node 기준)
 # =========================================
-FORCE_THRESHOLD = 8.0       # 접촉 감지 임계값 (N)
+FORCE_THRESHOLD = 30.0      # 접촉 감지 임계값 (N) - robot_pick_node: 30.0
 FORCE_PUSH = 50.0           # Compliance 모드에서 인가할 힘 (N)
 MAX_DESCENT = 100.0         # 최대 하강 거리 (mm)
 STEP_Z = 0.5                # Force 감지 시 스텝 (mm)
+
+# Place 시 Force 탐색 설정
+PLACE_FORCE_THRESHOLD = 5.0     # 배치 시 접촉 감지 임계값 (N)
+PLACE_FORCE_THRESHOLD_ML = 2.5  # MEDIUM/LONG 배치 시 감도 (N)
+SAFE_FORCE_LIMIT = 10.0         # Force 탐색 시 안전 상한 (N)
 
 # =========================================
 # 픽업/배치 오프셋 (mm) - robot_pick_node 기준
@@ -28,12 +35,18 @@ PICK_EXTRA_DOWN = 30.0      # 픽업 시 추가 하강
 PLACE_EXTRA_DOWN = 50.0     # 배치 시 추가 하강
 FINAL_PUSH = 15.0           # 최종 밀어넣기
 PLACE_REDUCE = 30.0         # 배치 높이 감소
-Z_OFFSET_DOWN = 15.0        # 배치 시 추가 하강 오프셋
+Z_OFFSET_DOWN = 10.0        # 배치 시 추가 하강 오프셋
+
+# =========================================
+# 층별 적재 높이 (MEDIUM/LONG)
+# =========================================
+LAYER_HEIGHT_MEDIUM = 45.0  # MEDIUM 한 층 높이 + 여유
+LAYER_HEIGHT_LONG = 65.0    # LONG 한 층 높이 + 여유
 
 # =========================================
 # 컨베이어 높이 보정
 # =========================================
-CONVEYOR_HEIGHT_OFFSET = 70.0  # 컨베이어 높이 (mm)
+CONVEYOR_HEIGHT_OFFSET = 90.0  # 컨베이어 높이 (mm) - robot_pick_node: 90.0
 
 # =========================================
 # 안전 Z 한계 (mm)
@@ -46,8 +59,10 @@ SAFE_Z_PLACE = 12.5         # 배치 시 안전 Z 한계
 # =========================================
 VELOCITY_MOVE = 200.0       # 이동 속도 (mm/s)
 ACCEL_MOVE = 400.0          # 이동 가속도 (mm/s²)
-VELOCITY_PICK = 60.0        # 픽업 하강 속도 (mm/s)
+VELOCITY_PICK = 75.0        # 픽업 하강 속도 (mm/s) - robot_pick_node: 75.0
 ACCEL_PICK = 200.0          # 픽업 하강 가속도 (mm/s²)
+VELOCITY_FORCE = 200.0      # Force 하강 속도 (mm/s)
+ACCEL_FORCE = 400.0         # Force 하강 가속도 (mm/s²)
 
 # =========================================
 # 작업 단계 상수

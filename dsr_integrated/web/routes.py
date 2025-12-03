@@ -7,7 +7,7 @@ import os
 import json
 from flask import Blueprint, render_template, jsonify
 
-from .data_store import robot_data, sort_status, conveyor_status
+from .data_store import robot_data, sort_status, conveyor_status, logistics_status
 
 # 경로 설정
 LOGISTICS_MONITOR_DIR = os.path.expanduser('~/cobot1_ws/src/logistics_monitor')
@@ -46,6 +46,12 @@ def get_sort_status():
 def get_conveyor_status():
     """컨베이어 상태 API"""
     return jsonify(conveyor_status)
+
+
+@routes_bp.route('/api/logistics_status')
+def get_logistics_status():
+    """물류 적재 상태 API"""
+    return jsonify(logistics_status)
 
 
 @routes_bp.route('/firebase_config')
