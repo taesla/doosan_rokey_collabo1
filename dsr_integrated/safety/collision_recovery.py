@@ -450,6 +450,22 @@ class CollisionRecovery:
                 if self.state_monitor.is_safe_stop(state):
                     if not self.reset_safe_stop():
                         continue
+                    
+                    # 리셋 후 상태 확인 - 아직 SAFE_STOP이면 충돌 해소 안됨
+                    time.sleep(0.5)
+                    state = self.state_monitor.get_robot_state()
+                    if self.state_monitor.is_safe_stop(state):
+                        self.node.get_logger().warn('[Recovery] ⚠️ 충돌 해소 안됨 - 장애물 제거 대기 (3초)...')
+                        time.sleep(3.0)
+                        
+                        # 다시 리셋 시도
+                        self.reset_safe_stop()
+                        time.sleep(0.5)
+                        state = self.state_monitor.get_robot_state()
+                        
+                        if self.state_monitor.is_safe_stop(state):
+                            self.node.get_logger().warn('[Recovery] ⚠️ 여전히 SAFE_STOP - 장애물 제거 필요')
+                            continue
                 
                 # 2. RECOVERY 진입
                 self.enter_recovery()
@@ -480,10 +496,17 @@ class CollisionRecovery:
                 # 5. RECOVERY 해제
                 self.exit_recovery()
                 
-                # 6. 서보 ON
+                # 6. 상태 확인 - 드라이버 응답 없으면 바로 실패
                 state = self.state_monitor.get_robot_state()
                 self.node.get_logger().info(f'[Recovery] 해제 후 상태: {state_name(state)}')
                 
+                if state is None:
+                    self.node.get_logger().error('[Recovery] 드라이버 응답 없음 - 복구 불가')
+                    self.node.get_logger().error('[Recovery] 드라이버 재시작 필요')
+                    # 복구 실패로 처리 - sort_node에서 드라이버 재시작 처리
+                    break
+                
+                # 7. 서보 ON (상태가 STANDBY가 아닐 때)
                 if not self.state_monitor.is_standby(state):
                     self.servo_on()
                 
