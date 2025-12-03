@@ -437,21 +437,38 @@ class DlarSortNode(Node):
         # Web UI에 진행 상태 발행
         self._publish_recovery_status('progress', step, percent)
     
-    def _on_recovery_complete(self, success: bool):
-        """복구 완료 이벤트"""
+    def _on_recovery_complete(self, success: bool, was_gripping: bool = False):
+        """
+        복구 완료 이벤트
+        
+        Args:
+            success: 복구 성공 여부
+            was_gripping: 복구 전 그립 상태였는지 (사이클 카운트 스킵 판단용)
+        """
         # Web UI에 완료 상태 발행
-        self._publish_recovery_status('complete', '복구 완료' if success else '복구 실패', 100 if success else 0, success)
+        if was_gripping:
+            step_msg = '복구 완료 (물체 반납됨)' if success else '복구 실패'
+        else:
+            step_msg = '복구 완료' if success else '복구 실패'
+        
+        self._publish_recovery_status('complete', step_msg, 100 if success else 0, success)
         
         if success:
             # 비상정지 해제
             self.state.emergency_release()
             self.get_logger().info('✅ [SORT] 비상정지 해제 - 작업 재개 가능')
             
-            # 저장된 작업 상태 확인
+            # 저장된 작업 상태 확인 (사이클 카운트 스킵 플래그 설정)
             saved_state = self.recovery.get_saved_work_state()
             if saved_state:
                 self.get_logger().info(f'[SORT] 저장된 상태: {saved_state}')
+                # ★ 충돌 복구 시 사이클 카운트 스킵 표시
+                if self.recovery.was_collision_recovery:
+                    self.get_logger().info('[SORT] ⚠️ 충돌 복구로 인해 현재 사이클 카운트 스킵됨')
                 self.recovery.clear_saved_work_state()
+            
+            # 충돌 복구 플래그 클리어
+            self.recovery.clear_collision_flag()
         else:
             self.get_logger().warn('[SORT] 복구 실패 - 수동 개입 필요')
 
@@ -531,7 +548,10 @@ class DlarSortNode(Node):
     def _run_sort_loop(self):
         """
         분류 작업 메인 루프 - robot_pick_node 기반 9사이클 적재
-        (비상정지 시 대기, 해제 시 이어서 재개)
+        
+        충돌 복구 시:
+        - 그립 상태: 물체 반납 후 홈으로 → 현재 사이클 스킵 (카운트 안함)
+        - 비그립 상태: 홈 직행 → 현재 사이클 재시도
         """
         self.state.load()
         home = HOME_POSITION.copy()
@@ -555,6 +575,14 @@ class DlarSortNode(Node):
                 time.sleep(0.1)
                 continue
             
+            # ★ 충돌 복구 후 체크: 복구가 완료되면 카운트 스킵 여부 확인
+            if self.recovery.was_collision_recovery:
+                # 복구 완료 - 충돌 플래그 클리어하고 다음 사이클로
+                self.get_logger().info("[RECOVERY] 충돌 복구 완료 - 현재 사이클 스킵하고 다음 진행")
+                self.recovery.clear_collision_flag()
+                # 사이클 카운트 증가 없이 다음 루프로
+                continue
+            
             # 일시정지 대기
             if self.state.state.is_paused:
                 time.sleep(0.1)
@@ -570,9 +598,9 @@ class DlarSortNode(Node):
                 self.get_logger().info("[PHASE] PICK 단계 시작 (컨베이어)")
                 pick_ok = self.pick_place.pick_and_measure()
                 
-                # 비상정지 체크
+                # 비상정지/충돌 체크
                 if self.state.is_emergency_stopped():
-                    cycle_count -= 1  # 사이클 재시도
+                    cycle_count -= 1  # 사이클 재시도 (복구 후 다시 시도)
                     continue
                 
                 if not pick_ok:
@@ -584,7 +612,7 @@ class DlarSortNode(Node):
                 # ===== PLACE =====
                 self.get_logger().info("[PHASE] PLACE 단계 시작 (팔레트)")
                 
-                # 비상정지 체크
+                # 비상정지/충돌 체크
                 if self.state.is_emergency_stopped():
                     cycle_count -= 1
                     continue
@@ -593,8 +621,9 @@ class DlarSortNode(Node):
                 self.get_logger().info(f'[CYCLE] PLACE ({width_class})')
                 self.pick_place.place_to_box(width_class)
                 
-                # 비상정지 체크
+                # 비상정지/충돌 체크
                 if self.state.is_emergency_stopped():
+                    # ★ PLACE 중 충돌: 물체는 이미 반납됐으므로 카운트만 유지
                     continue
                 
                 # 그리퍼 닫고 홈으로 복귀

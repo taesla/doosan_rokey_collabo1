@@ -297,3 +297,66 @@ def register_socket_handlers(socketio, get_ros_node):
         if ros_node:
             ui_state['pendulum_running'] = ros_node.pendulum_running
         socketio.emit('ui_state', ui_state)
+
+    @socketio.on('one_take_start')
+    def handle_one_take_start():
+        """
+        원테이크 시나리오 시작
+        1. 홈 위치로 이동
+        2. 컨베이어 자동 모드 활성화
+        3. 분류 작업 시작
+        → 자동으로 detect → 분류 → 반복
+        """
+        ros_node = get_ros_node()
+        print('🚀 ONE TAKE SCENARIO START')
+        
+        if not ros_node:
+            add_log('ERROR', 'ROS 노드 초기화 안됨')
+            socketio.emit('one_take_result', {'success': False, 'message': 'ROS 노드 초기화 안됨'})
+            return
+        
+        try:
+            # Step 1: 컨베이어 자동 모드 활성화 (내부에서 홈 이동 + 분류 시작)
+            success, message = ros_node.call_conveyor_mode(True)
+            
+            if success:
+                add_log('INFO', '🚀 원테이크 시나리오 시작!')
+                add_log('INFO', '  → 컨베이어 자동 모드 활성화')
+                add_log('INFO', '  → 홈 위치로 이동 중...')
+                add_log('INFO', '  → 물체 감지 대기 중')
+                socketio.emit('one_take_result', {
+                    'success': True, 
+                    'message': '원테이크 시나리오 시작됨 - 물체 감지 대기 중'
+                })
+            else:
+                add_log('ERROR', f'원테이크 시나리오 시작 실패: {message}')
+                socketio.emit('one_take_result', {'success': False, 'message': message})
+                
+        except Exception as e:
+            add_log('ERROR', f'원테이크 시나리오 오류: {e}')
+            socketio.emit('one_take_result', {'success': False, 'message': str(e)})
+
+    @socketio.on('one_take_stop')
+    def handle_one_take_stop():
+        """원테이크 시나리오 중지"""
+        ros_node = get_ros_node()
+        print('⏹️ ONE TAKE SCENARIO STOP')
+        
+        if not ros_node:
+            add_log('ERROR', 'ROS 노드 초기화 안됨')
+            socketio.emit('one_take_result', {'success': False, 'message': 'ROS 노드 초기화 안됨'})
+            return
+        
+        try:
+            # 1. 분류 정지
+            ros_node.call_stop_sort()
+            
+            # 2. 컨베이어 자동 모드 비활성화
+            ros_node.call_conveyor_mode(False)
+            
+            add_log('INFO', '⏹️ 원테이크 시나리오 중지됨')
+            socketio.emit('one_take_result', {'success': True, 'message': '원테이크 시나리오 중지됨'})
+            
+        except Exception as e:
+            add_log('ERROR', f'원테이크 시나리오 중지 오류: {e}')
+            socketio.emit('one_take_result', {'success': False, 'message': str(e)})

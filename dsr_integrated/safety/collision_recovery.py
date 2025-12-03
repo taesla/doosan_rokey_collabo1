@@ -32,22 +32,36 @@ from ..config.constants import (
     ROBOT_ID,
     CTRL_RESET_SAFE_STOP, CTRL_SERVO_ON, CTRL_RESET_RECOVERY,
     RECOVERY_Z_THRESHOLD, RECOVERY_JOG_TIME, RECOVERY_JOG_SPEED, RECOVERY_JOG_AXIS_Z,
+    VELOCITY_MOVE, ACCEL_MOVE,
 )
+from ..config.positions import HOME_POSITION, CONVEY_START_POINT
 from ..monitoring.state_monitor import RobotStateMonitor, state_name
 
 
 class CollisionRecovery:
-    """충돌 복구 클래스 (단순화)"""
+    """
+    충돌 복구 클래스
+    
+    복구 시나리오:
+    1. 그립 상태 (물체 잡고 있음):
+       - 복구 → 컨베이어 시작점으로 이동 → Place → 홈으로 이동
+       - 사이클 카운트 증가 안함
+    2. 비그립 상태:
+       - 복구 → 홈으로 직행
+       - 사이클 카운트 증가 안함
+    """
     
     def __init__(
         self, 
         node: Node, 
         state_monitor: RobotStateMonitor,
-        callback_group: ReentrantCallbackGroup = None
+        callback_group: ReentrantCallbackGroup = None,
+        robot_controller = None
     ):
         self.node = node
         self.state_monitor = state_monitor
         self.callback_group = callback_group
+        self.robot = robot_controller  # RobotController 인스턴스
         
         # 서비스 클라이언트
         self._init_clients()
@@ -55,10 +69,11 @@ class CollisionRecovery:
         # 복구 상태
         self._is_recovering = False
         self._saved_work_state = None
+        self._recovery_caused_by_collision = False  # 충돌로 인한 복구인지
         
         # 콜백
         self._on_progress: Optional[Callable[[str, int], None]] = None
-        self._on_complete: Optional[Callable[[bool], None]] = None
+        self._on_complete: Optional[Callable[[bool, bool], None]] = None  # (success, was_gripping)
         
         self.node.get_logger().info('[Recovery] 초기화 완료')
     
@@ -221,8 +236,7 @@ class CollisionRecovery:
         
         try:
             self.node.get_logger().info('[Recovery] 홈 위치로 이동 시작...')
-            # 사용자 홈 위치로 이동 (target=1)
-            success = self.robot.move_home(target=1)
+            success = self.robot.movel(HOME_POSITION, vel=VELOCITY_MOVE, acc=ACCEL_MOVE)
             
             if success:
                 self.node.get_logger().info('[Recovery] 홈 위치 도착')
@@ -232,6 +246,59 @@ class CollisionRecovery:
             return success
         except Exception as e:
             self.node.get_logger().error(f'[Recovery] 홈 이동 예외: {e}')
+            return False
+    
+    def _place_and_go_home(self) -> bool:
+        """
+        그립 상태에서 복구: 컨베이어 시작점에 물체 내려놓고 홈으로 이동
+        
+        Returns:
+            성공 여부
+        """
+        if self.robot is None:
+            self.node.get_logger().warn('[Recovery] robot_controller가 없어서 place 불가')
+            return False
+        
+        try:
+            # 1. 먼저 안전 높이로 올리기 (현재 위치에서 Z+100)
+            self.node.get_logger().info('[Recovery] 안전 높이로 상승...')
+            current_pos = self.robot.get_current_posx()
+            if current_pos:
+                safe_pos = list(current_pos)
+                safe_pos[2] = max(safe_pos[2], HOME_POSITION[2])  # HOME Z 높이로
+                self.robot.movel(safe_pos, vel=VELOCITY_MOVE, acc=ACCEL_MOVE)
+            
+            # 2. 컨베이어 시작점 위로 이동 (안전 높이 유지)
+            self._notify_progress('컨베이어 위치로 이동 중...', 70)
+            approach_pos = CONVEY_START_POINT.copy()
+            approach_pos[2] = HOME_POSITION[2]  # 안전 높이
+            self.robot.movel(approach_pos, vel=VELOCITY_MOVE, acc=ACCEL_MOVE)
+            
+            # 3. 컨베이어 시작점으로 하강
+            self._notify_progress('물체 내려놓기...', 80)
+            self.robot.movel(CONVEY_START_POINT, vel=VELOCITY_MOVE/2, acc=ACCEL_MOVE/2)
+            
+            # 4. 그리퍼 열기 (물체 내려놓기)
+            self.robot.grip_open()
+            time.sleep(0.5)
+            
+            # 5. 위로 복귀
+            self.robot.movel(approach_pos, vel=VELOCITY_MOVE, acc=ACCEL_MOVE)
+            
+            # 6. 그리퍼 닫기
+            self.robot.grip_close()
+            
+            # 7. 홈으로 이동
+            self._notify_progress('홈 위치로 이동 중...', 90)
+            success = self.robot.movel(HOME_POSITION, vel=VELOCITY_MOVE, acc=ACCEL_MOVE)
+            
+            if success:
+                self.node.get_logger().info('[Recovery] ✅ 물체 반납 후 홈 도착')
+            
+            return success
+            
+        except Exception as e:
+            self.node.get_logger().error(f'[Recovery] place_and_go_home 예외: {e}')
             return False
     
     # =========================================
@@ -258,6 +325,10 @@ class CollisionRecovery:
         """
         자동 복구 시퀀스 실행
         
+        복구 시나리오:
+        1. 그립 상태 → 컨베이어 시작점에 물체 반납 → 홈 이동 (사이클 카운트 X)
+        2. 비그립 상태 → 홈 직행 (사이클 카운트 X)
+        
         Returns:
             복구 성공 여부
         """
@@ -266,9 +337,17 @@ class CollisionRecovery:
             return False
         
         self._is_recovering = True
+        self._recovery_caused_by_collision = True  # 충돌로 인한 복구 표시
         success = False
+        was_gripping = False
         
         try:
+            # ===== 그립 상태 확인 (복구 전) =====
+            if self.robot:
+                was_gripping = self.robot.is_gripping()
+                grip_status = "🔴 물체 잡고 있음" if was_gripping else "⚪ 빈 손"
+                self.node.get_logger().info(f'[Recovery] 그립 상태: {grip_status}')
+            
             # 현재 Z 높이 확인 (바닥 충돌 판단용)
             current_z = self.state_monitor.get_current_z()
             needs_jog = current_z is not None and current_z < RECOVERY_Z_THRESHOLD
@@ -278,6 +357,10 @@ class CollisionRecovery:
             
             self.node.get_logger().info('=' * 50)
             self.node.get_logger().info(f'[Recovery] 자동 복구 시작 - {case_type}, Z={z_str}')
+            if was_gripping:
+                self.node.get_logger().info('[Recovery] → 물체 반납 후 홈으로 이동 예정')
+            else:
+                self.node.get_logger().info('[Recovery] → 홈으로 직행 예정')
             self.node.get_logger().info('=' * 50)
             
             for attempt in range(max_attempts):
@@ -325,17 +408,23 @@ class CollisionRecovery:
                 if self.state_monitor.is_standby(state):
                     self.node.get_logger().info('✅ [Recovery] 상태 복구 성공!')
                     
-                    # 서비스 안정화 대기 (DSR 드라이버가 완전히 준비될 때까지)
+                    # 서비스 안정화 대기
                     self.node.get_logger().info('[Recovery] 서비스 안정화 대기 (2초)...')
                     time.sleep(2.0)
                     
-                    # 홈 위치로 이동
-                    self._notify_progress('홈 위치로 이동 중...', 85)
-                    home_success = self._move_to_home()
+                    # ===== 그립 상태에 따른 분기 =====
+                    if was_gripping:
+                        # 그립 상태: 물체 반납 후 홈으로
+                        self._notify_progress('물체 반납 및 홈 이동 중...', 75)
+                        home_success = self._place_and_go_home()
+                    else:
+                        # 비그립 상태: 홈 직행
+                        self._notify_progress('홈 위치로 이동 중...', 85)
+                        home_success = self._move_to_home()
                     
                     if home_success:
                         self._notify_progress('복구 완료', 100)
-                        self.node.get_logger().info('✅ [Recovery] 홈 이동 완료 - 복구 완료!')
+                        self.node.get_logger().info('✅ [Recovery] 홈 이동 완료 - 복구 100% 완료!')
                     else:
                         self._notify_progress('복구 완료 (홈 이동 실패)', 95)
                         self.node.get_logger().warn('⚠️ [Recovery] 홈 이동 실패 - 수동 홈 이동 필요')
@@ -357,9 +446,19 @@ class CollisionRecovery:
         finally:
             self._is_recovering = False
             if self._on_complete:
-                self._on_complete(success)
+                # 콜백에 그립 상태 정보도 전달
+                self._on_complete(success, was_gripping)
         
         return success
+    
+    @property
+    def was_collision_recovery(self) -> bool:
+        """마지막 복구가 충돌로 인한 것인지 반환 (사이클 카운트 스킵용)"""
+        return self._recovery_caused_by_collision
+    
+    def clear_collision_flag(self):
+        """충돌 복구 플래그 클리어"""
+        self._recovery_caused_by_collision = False
 
     # =========================================
     # 드라이버 재시작 (서비스 응답 없을 때)
