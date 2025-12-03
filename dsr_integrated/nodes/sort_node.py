@@ -207,6 +207,21 @@ class DlarSortNode(Node):
             response.message = 'DSR 로봇이 준비되지 않았습니다'
             return response
         
+        # 복구 중인지 확인
+        if self.recovery.is_recovering:
+            response.success = False
+            response.message = '복구 진행 중입니다. 완료 후 시도하세요.'
+            self.get_logger().warn('[SORT] 분류 시작 거부 - 복구 진행 중')
+            return response
+        
+        # 로봇 상태가 STANDBY인지 확인
+        current_state = self.state_monitor.get_robot_state()
+        if current_state != 1:  # 1 = STANDBY
+            response.success = False
+            response.message = f'로봇이 준비 상태가 아닙니다 (현재: {current_state})'
+            self.get_logger().warn(f'[SORT] 분류 시작 거부 - 로봇 상태: {current_state}')
+            return response
+        
         self.state.start()
         
         # 별도 스레드에서 분류 작업 실행
@@ -310,7 +325,7 @@ class DlarSortNode(Node):
         self.get_logger().error('💀 [SORT] DSR 드라이버가 응답하지 않습니다!')
         
         # 비상정지 상태로 전환
-        self.state.trigger_emergency_stop()
+        self.state.emergency_stop()
         
         # 작업 강제 종료
         self.state.request_stop()
