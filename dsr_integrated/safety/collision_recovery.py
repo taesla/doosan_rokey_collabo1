@@ -620,27 +620,30 @@ class CollisionRecovery:
                 self.node.get_logger().info('[Recovery] DSR 드라이버 재시작...')
                 self._notify_progress('드라이버 시작 중...', 40)
                 
-                # 백그라운드에서 드라이버 런치
                 # 환경 변수 설정
                 env = os.environ.copy()
                 env['ROS_DOMAIN_ID'] = os.environ.get('ROS_DOMAIN_ID', '0')
                 
-                # nohup으로 백그라운드 실행 (현재 프로세스와 분리)
+                # bash -c로 실행 (환경 설정 포함)
+                home_dir = os.path.expanduser('~')
                 launch_cmd = (
-                    'source /opt/ros/humble/setup.bash && '
-                    'source ~/cobot1_ws/install/setup.bash && '
-                    'ros2 launch dsr_bringup2 dsr_bringup2_m0609.launch.py '
-                    'mode:=real host:=192.168.137.100 port:=12345 '
-                    '> /tmp/dsr_driver_restart.log 2>&1 &'
+                    f'bash -c "'
+                    f'source /opt/ros/humble/setup.bash && '
+                    f'source {home_dir}/cobot1_ws/install/setup.bash && '
+                    f'ros2 launch dsr_bringup2 dsr_bringup2_m0609.launch.py '
+                    f'mode:=real host:=192.168.137.100 port:=12345'
+                    f'" > /tmp/dsr_driver_restart.log 2>&1'
                 )
                 
+                self.node.get_logger().info(f'[Recovery] 실행 명령: {launch_cmd[:80]}...')
+                
+                # nohup + setsid로 완전히 분리된 프로세스로 실행
+                full_cmd = f'nohup setsid {launch_cmd} &'
                 subprocess.Popen(
-                    launch_cmd,
+                    full_cmd,
                     shell=True,
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                    start_new_session=True,  # 부모 프로세스와 분리
-                    env=env
+                    env=env,
+                    cwd=home_dir
                 )
                 
                 self.node.get_logger().info('[Recovery] 드라이버 런치 명령 실행됨')
