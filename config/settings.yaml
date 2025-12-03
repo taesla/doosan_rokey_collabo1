@@ -1,0 +1,62 @@
+# ==========================================
+# 로봇 설정 파일 (Robot Settings)
+# ==========================================
+
+# 로봇 기본 설정
+robot:
+  id: "dsr01"
+  model: "m0609"
+
+# Force 센서 설정
+force:
+  threshold: 30.0       # 접촉 감지 임계값 (N)
+  push_force: 50.0      # Compliance 모드에서 인가할 힘 (N)
+  max_descent: 120.0    # 최대 하강 거리 (mm)
+
+# 픽업/배치 오프셋 (mm)
+offsets:
+  up: 30.0              # 위로 올라가는 오프셋
+  grip: 20.0            # 그리퍼 오프셋
+  pick_extra_down: 30.0 # 픽업 시 추가 하강
+  place_extra_down: 50.0  # 배치 시 추가 하강
+  final_push: 15.0      # 최종 밀어넣기
+  place_reduce: 30.0    # 배치 높이 감소
+
+# 컨베이어 설정
+conveyor:
+  height_offset: 70.0   # 컨베이어 높이 보정 (mm)
+  serial_port: "/dev/ttyUSB0"
+  baud_rate: 9600
+
+# 안전 Z 한계 (mm)
+safety:
+  z_pick_limit: 103.0   # 픽업 시 안전 Z 한계
+  z_place_limit: 12.5   # 배치 시 안전 Z 한계
+
+# 속도/가속도 설정
+motion:
+  velocity_move: 200.0  # 이동 속도 (mm/s)
+  accel_move: 400.0     # 이동 가속도 (mm/s²)
+  velocity_pick: 60.0   # 픽업 하강 속도 (mm/s)
+  accel_pick: 200.0     # 픽업 하강 가속도 (mm/s²)
+
+# Compliance Control 기본 강성
+compliance:
+  stiffness:
+    - 1000.0  # X
+    - 1000.0  # Y
+    - 200.0   # Z (부드럽게)
+    - 500.0   # RX
+    - 500.0   # RY
+    - 500.0   # RZ
+
+# 웹서버 설정
+web_server:
+  host: "0.0.0.0"
+  port: 5000
+
+# Firebase 설정 (경로)
+firebase:
+  config_dir: "~/cobot1_ws/src/logistics_monitor/config"
+  service_account_key: "serviceAccountKey.json"
+  web_config: "firebase_web_config.json"
