@@ -485,19 +485,11 @@ class DlarSortNode(Node):
         
         self.get_logger().warn('⚠️ [SORT] 충돌 감지됨!')
         
-        # ★★★ 즉시 Force Control 해제 (pick_place와 충돌 방지) ★★★
-        try:
-            self.robot.release_force()
-            self.robot.disable_compliance()
-            self.get_logger().info('[SORT] Force Control 해제 완료')
-        except Exception as e:
-            self.get_logger().warn(f'[SORT] Force Control 해제 실패: {e}')
+        # ★★★ 먼저 비상정지 활성화 (pick_place 루프 중단) ★★★
+        self.state.emergency_stop()
         
         # Web UI에 충돌 감지 알림
         self._publish_recovery_status('detected', '충돌 감지 - 자동 복구 시작', 0)
-        
-        # 비상정지 상태로 전환
-        self.state.emergency_stop()
         
         # 현재 작업 상태 저장
         work_state = self._get_current_work_state()
@@ -693,12 +685,15 @@ class DlarSortNode(Node):
                 
                 # 비상정지/충돌 체크
                 if self.state.is_emergency_stopped():
+                    self.get_logger().info("[ABORT] 비상정지 상태 - 복구 대기")
                     cycle_count -= 1  # 사이클 재시도 (복구 후 다시 시도)
                     continue
                 
                 if not pick_ok:
                     self.get_logger().info("[SKIP] PICK 실패 감지 → 사이클 재시도")
-                    self._movel_with_estop_check(home, vel=self.VELOCITY_MOVE, acc=self.ACCEL_MOVE)
+                    # 비상정지 상태가 아닐 때만 홈 이동
+                    if not self.state.is_emergency_stopped():
+                        self._movel_with_estop_check(home, vel=self.VELOCITY_MOVE, acc=self.ACCEL_MOVE)
                     cycle_count -= 1
                     continue
                 
