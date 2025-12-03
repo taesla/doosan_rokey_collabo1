@@ -213,6 +213,27 @@ class CollisionRecovery:
         time.sleep(1.0)
         return result
     
+    def _move_to_home(self) -> bool:
+        """홈 위치로 이동 (복구 완료 후)"""
+        if self.robot is None:
+            self.node.get_logger().warn('[Recovery] robot_controller가 없어서 홈 이동 불가')
+            return False
+        
+        try:
+            self.node.get_logger().info('[Recovery] 홈 위치로 이동 시작...')
+            # 사용자 홈 위치로 이동 (target=1)
+            success = self.robot.move_home(target=1)
+            
+            if success:
+                self.node.get_logger().info('[Recovery] 홈 위치 도착')
+            else:
+                self.node.get_logger().warn('[Recovery] 홈 이동 실패')
+            
+            return success
+        except Exception as e:
+            self.node.get_logger().error(f'[Recovery] 홈 이동 예외: {e}')
+            return False
+    
     # =========================================
     # 자동 복구
     # =========================================
@@ -302,13 +323,23 @@ class CollisionRecovery:
                 # 결과 확인
                 state = self.state_monitor.get_robot_state()
                 if self.state_monitor.is_standby(state):
-                    self.node.get_logger().info('✅ [Recovery] 복구 성공!')
+                    self.node.get_logger().info('✅ [Recovery] 상태 복구 성공!')
                     
                     # 서비스 안정화 대기 (DSR 드라이버가 완전히 준비될 때까지)
                     self.node.get_logger().info('[Recovery] 서비스 안정화 대기 (2초)...')
                     time.sleep(2.0)
                     
-                    self._notify_progress('복구 완료', 100)
+                    # 홈 위치로 이동
+                    self._notify_progress('홈 위치로 이동 중...', 85)
+                    home_success = self._move_to_home()
+                    
+                    if home_success:
+                        self._notify_progress('복구 완료', 100)
+                        self.node.get_logger().info('✅ [Recovery] 홈 이동 완료 - 복구 완료!')
+                    else:
+                        self._notify_progress('복구 완료 (홈 이동 실패)', 95)
+                        self.node.get_logger().warn('⚠️ [Recovery] 홈 이동 실패 - 수동 홈 이동 필요')
+                    
                     success = True
                     break
                 

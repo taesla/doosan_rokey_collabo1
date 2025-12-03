@@ -65,7 +65,10 @@ class DlarSortNode(Node):
         
         # 충돌 복구 모듈 초기화
         self.state_monitor = RobotStateMonitor(self, self.callback_group)
-        self.recovery = CollisionRecovery(self, self.state_monitor, self.callback_group)
+        self.recovery = CollisionRecovery(
+            self, self.state_monitor, self.callback_group,
+            robot_controller=self.robot  # 홈 이동용
+        )
         self._setup_recovery_callbacks()
         
         # Pick/Place 태스크 초기화
