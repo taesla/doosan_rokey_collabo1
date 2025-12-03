@@ -64,6 +64,10 @@ class RobotStateMonitor:
         self._driver_alive = True
         self._on_driver_dead_callback: Optional[Callable] = None
         
+        # 하트비트 기반 자동 복구
+        self._driver_was_dead = False  # 드라이버가 죽었다가 살아났는지
+        self._on_driver_recovered_callback: Optional[Callable] = None  # 드라이버 복구 콜백
+        
         # 콜백
         self._on_collision_callback: Optional[Callable] = None
         self._on_recovery_complete_callback: Optional[Callable] = None
@@ -111,6 +115,10 @@ class RobotStateMonitor:
     def set_driver_dead_callback(self, callback: Callable):
         """드라이버 죽음 콜백 설정"""
         self._on_driver_dead_callback = callback
+    
+    def set_driver_recovered_callback(self, callback: Callable):
+        """드라이버 복구 콜백 설정 (하트비트 기반 자동 복구용)"""
+        self._on_driver_recovered_callback = callback
     
     @property
     def is_driver_alive(self) -> bool:
@@ -252,6 +260,7 @@ class RobotStateMonitor:
                     if self._consecutive_failures >= self._max_failures:
                         if self._driver_alive:
                             self._driver_alive = False
+                            self._driver_was_dead = True  # 드라이버 죽음 기록
                             self.node.get_logger().error(
                                 f'💀 [StateMonitor] DSR 드라이버 응답 없음! (연속 {self._consecutive_failures}회 실패)'
                             )
@@ -265,8 +274,19 @@ class RobotStateMonitor:
                 else:
                     # 응답 성공 시 카운터 리셋
                     if self._consecutive_failures > 0:
-                        if not self._driver_alive:
-                            self.node.get_logger().info('✅ [StateMonitor] DSR 드라이버 복구됨!')
+                        # ★ 하트비트 기반 자동 복구: 드라이버가 죽었다가 살아났을 때
+                        if not self._driver_alive and self._driver_was_dead:
+                            self.node.get_logger().info('=' * 50)
+                            self.node.get_logger().info('💚 [StateMonitor] DSR 드라이버 복구 감지!')
+                            self.node.get_logger().info('💚 [StateMonitor] 하트비트 기반 자동 복구 시작')
+                            self.node.get_logger().info('=' * 50)
+                            
+                            # 드라이버 복구 콜백 호출 (홈 이동 등)
+                            if self._on_driver_recovered_callback:
+                                self._on_driver_recovered_callback()
+                            
+                            self._driver_was_dead = False  # 플래그 리셋
+                        
                         self._driver_alive = True
                     self._consecutive_failures = 0
                 

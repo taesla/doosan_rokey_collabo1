@@ -26,6 +26,7 @@ from ..config.yaml_loader import get_config
 from ..config.constants import (
     PHASE_PICK, PHASE_PLACE,
     DR_BASE, DR_TOOL, DR_FC_MOD_ABS,
+    STATE_STANDBY,
 )
 from ..config.positions import HOME_POSITION
 
@@ -320,6 +321,8 @@ class DlarSortNode(Node):
         self.state_monitor.set_collision_callback(self._on_collision_detected)
         # 드라이버 죽음 콜백
         self.state_monitor.set_driver_dead_callback(self._on_driver_dead)
+        # ★ 드라이버 복구 콜백 (하트비트 기반 자동 복구)
+        self.state_monitor.set_driver_recovered_callback(self._on_driver_recovered)
         # 복구 진행 콜백 (Web UI용)
         self.recovery.set_progress_callback(self._on_recovery_progress)
         # 복구 완료 콜백
@@ -369,6 +372,83 @@ class DlarSortNode(Node):
                 success=False
             )
     
+    def _on_driver_recovered(self):
+        """
+        ★ 하트비트 기반 자동 복구 콜백
+        드라이버가 죽었다가 다시 살아났을 때 호출
+        """
+        self.get_logger().info('=' * 60)
+        self.get_logger().info('💚 [SORT] 하트비트 기반 자동 복구 시작!')
+        self.get_logger().info('=' * 60)
+        
+        # Web UI에 알림
+        self._publish_recovery_status(
+            event='driver_recovered',
+            step='드라이버 복구 감지! 자동 복구 진행 중...',
+            percent=50,
+            success=True
+        )
+        
+        # 별도 스레드에서 복구 진행
+        def auto_recovery_sequence():
+            try:
+                # 1. 서비스 안정화 대기
+                self.get_logger().info('[HEARTBEAT] 서비스 안정화 대기 (3초)...')
+                time.sleep(3.0)
+                
+                # 2. 로봇 상태 확인
+                state = self.state_monitor.get_robot_state()
+                self.get_logger().info(f'[HEARTBEAT] 현재 로봇 상태: {state}')
+                
+                # 3. STANDBY가 아니면 충돌 복구 시퀀스 실행
+                if state != STATE_STANDBY:
+                    self.get_logger().info('[HEARTBEAT] STANDBY 아님 → 충돌 복구 시퀀스 실행')
+                    self.recovery.auto_recover()
+                else:
+                    # 4. STANDBY면 바로 홈 이동
+                    self.get_logger().info('[HEARTBEAT] STANDBY 상태 → 홈 위치로 이동')
+                    self._publish_recovery_status(
+                        event='driver_recovered',
+                        step='홈 위치로 이동 중...',
+                        percent=80,
+                        success=True
+                    )
+                    
+                    # 홈 이동
+                    self.robot.grip_close()
+                    success = self.robot.movel(HOME_POSITION, vel=self.VELOCITY_MOVE, acc=self.ACCEL_MOVE)
+                    
+                    if success:
+                        self.get_logger().info('✅ [HEARTBEAT] 홈 이동 완료 - 자동 복구 성공!')
+                        self._publish_recovery_status(
+                            event='driver_recovered_complete',
+                            step='자동 복구 완료! 작업 재개 가능',
+                            percent=100,
+                            success=True
+                        )
+                        
+                        # 비상정지 해제
+                        self.state.emergency_release()
+                    else:
+                        self.get_logger().warn('⚠️ [HEARTBEAT] 홈 이동 실패')
+                        self._publish_recovery_status(
+                            event='driver_recovered_partial',
+                            step='홈 이동 실패 - 수동 확인 필요',
+                            percent=90,
+                            success=False
+                        )
+                        
+            except Exception as e:
+                self.get_logger().error(f'[HEARTBEAT] 자동 복구 오류: {e}')
+                self._publish_recovery_status(
+                    event='driver_recovered_failed',
+                    step=f'자동 복구 오류: {e}',
+                    percent=0,
+                    success=False
+                )
+        
+        threading.Thread(target=auto_recovery_sequence, daemon=True).start()
+    
     def _get_current_work_state(self) -> dict:
         """현재 작업 상태 저장"""
         try:
@@ -398,6 +478,11 @@ class DlarSortNode(Node):
     
     def _on_collision_detected(self):
         """충돌 감지 이벤트 핸들러"""
+        # ★ 이미 복구 중이면 새 충돌 콜백 무시 (복구 완료 후에만 처리)
+        if self.recovery.is_recovering:
+            self.get_logger().info('[SORT] 🔄 복구 중 - 충돌 콜백 무시')
+            return
+        
         self.get_logger().warn('⚠️ [SORT] 충돌 감지됨!')
         
         # Web UI에 충돌 감지 알림
@@ -746,14 +831,21 @@ class DlarSortNode(Node):
             self.state.stats.add_error()
         
         finally:
+            # ★ waiting 상태를 finish() 전에 먼저 설정 (타이밍 이슈 방지)
+            if self.state.state.conveyor_mode:
+                self.state.set_waiting_for_object(True)
+                self.get_logger().info('[CONVEYOR] 다음 물체 대기 상태 설정')
+            
             self.state.finish()
             self.get_logger().info(f'[SINGLE] 사이클 종료 - conveyor_mode={self.state.state.conveyor_mode}')
             
             if self.state.state.conveyor_mode:
-                # ★ 컨베이어 재시작은 _on_place_complete()에서 이미 호출됨
-                # 여기서는 대기 상태만 설정
-                self.state.set_waiting_for_object(True)
-                self.get_logger().info('[CONVEYOR] 다음 물체 대기 중...')
+                # ★ 사이클 중에 이미 감지된 물체가 있으면 바로 다음 사이클 시작
+                if self.conveyor.is_detected:
+                    self.get_logger().info('[CONVEYOR] ★ 이미 감지된 물체 있음 - 즉시 다음 사이클!')
+                    self._start_single_cycle()
+                else:
+                    self.get_logger().info('[CONVEYOR] 다음 물체 대기 중...')
             else:
                 self.get_logger().warn('[CONVEYOR] conveyor_mode가 꺼져있어 재시작 안함')
 

@@ -21,6 +21,7 @@ import time
 import subprocess
 import signal
 import os
+import threading
 from typing import Callable, Optional
 
 from rclpy.node import Node
@@ -229,14 +230,15 @@ class CollisionRecovery:
         return result
     
     def _move_to_home(self) -> bool:
-        """홈 위치로 이동 (복구 완료 후)"""
+        """홈 위치로 이동 (복구 완료 후) - 안전 버전 사용"""
         if self.robot is None:
             self.node.get_logger().warn('[Recovery] robot_controller가 없어서 홈 이동 불가')
             return False
         
         try:
             self.node.get_logger().info('[Recovery] 홈 위치로 이동 시작...')
-            success = self.robot.movel(HOME_POSITION, vel=VELOCITY_MOVE, acc=ACCEL_MOVE)
+            # 안전한 movel 사용 (충돌 시 재복구)
+            success = self._safe_movel(HOME_POSITION, vel=VELOCITY_MOVE, acc=ACCEL_MOVE, max_retries=3)
             
             if success:
                 self.node.get_logger().info('[Recovery] 홈 위치 도착')
@@ -252,6 +254,8 @@ class CollisionRecovery:
         """
         그립 상태에서 복구: 컨베이어 시작점에 물체 내려놓고 홈으로 이동
         
+        ★ 복구 중 새 충돌 콜백은 sort_node에서 무시됨 (is_recovering 체크)
+        
         Returns:
             성공 여부
         """
@@ -260,7 +264,7 @@ class CollisionRecovery:
             return False
         
         try:
-            # 1. 먼저 안전 높이로 올리기 (현재 위치에서 Z+100)
+            # 1. 먼저 안전 높이로 올리기 (현재 위치에서)
             self.node.get_logger().info('[Recovery] 안전 높이로 상승...')
             current_pos = self.robot.get_current_posx()
             if current_pos:
@@ -465,10 +469,17 @@ class CollisionRecovery:
     # =========================================
     def restart_driver(self, on_restart_complete: Optional[Callable] = None) -> bool:
         """
-        DSR 드라이버 재시작
+        DSR 드라이버 자동 재시작
         
-        주의: 이 함수는 현재 런치 파일의 DSR 관련 노드만 재시작합니다.
-              전체 시스템을 재시작하려면 런치 파일을 다시 실행해야 합니다.
+        ⚠️ 주의: 로봇이 움직이던 중이면 안전 문제가 발생할 수 있습니다.
+        이 함수는 드라이버가 완전히 죽었을 때만 호출되어야 합니다.
+        
+        시퀀스:
+        1. 기존 DSR 관련 프로세스 종료
+        2. 잠시 대기 (프로세스 정리)
+        3. DSR 드라이버 런치 파일 재실행
+        4. 서비스 연결 대기
+        5. 하트비트 모니터링이 복구 감지 → 자동 홈 이동
         
         Args:
             on_restart_complete: 재시작 완료 콜백 (성공 여부 전달)
@@ -477,56 +488,113 @@ class CollisionRecovery:
             재시작 시도 성공 여부
         """
         self.node.get_logger().warn('=' * 60)
-        self.node.get_logger().warn('🔄 [Recovery] DSR 드라이버 재시작 시도')
+        self.node.get_logger().warn('🔄 [Recovery] DSR 드라이버 자동 재시작 시도')
         self.node.get_logger().warn('=' * 60)
         
         self._notify_progress('드라이버 재시작 중...', 10)
         
-        try:
-            # 1. DSR 관련 노드 종료 시도
-            self.node.get_logger().info('[Recovery] DSR 노드 종료 시도...')
-            
-            # ros2 node list에서 dsr 관련 노드 찾기
-            result = subprocess.run(
-                ['ros2', 'node', 'list'],
-                capture_output=True,
-                text=True,
-                timeout=5.0
-            )
-            
-            dsr_nodes = [n.strip() for n in result.stdout.split('\n') 
-                        if 'dsr' in n.lower() or 'controller_manager' in n.lower()]
-            
-            self.node.get_logger().info(f'[Recovery] 발견된 DSR 노드: {dsr_nodes}')
-            
-            # 2. 노드 강제 종료는 위험하므로 안내 메시지만 출력
-            self.node.get_logger().error('=' * 60)
-            self.node.get_logger().error('❌ [Recovery] 자동 드라이버 재시작 불가')
-            self.node.get_logger().error('   DSR 드라이버는 ros2_control의 일부로 실행되어')
-            self.node.get_logger().error('   개별 재시작이 어렵습니다.')
-            self.node.get_logger().error('')
-            self.node.get_logger().error('📋 수동 복구 절차:')
-            self.node.get_logger().error('   1. 터미널에서 Ctrl+C로 현재 런치 종료')
-            self.node.get_logger().error('   2. 로봇 상태 확인 (물리적 안전)')
-            self.node.get_logger().error('   3. 런치 파일 다시 실행:')
-            self.node.get_logger().error('      ros2 launch dsr_integrated full_system.launch.py')
-            self.node.get_logger().error('=' * 60)
-            
-            self._notify_progress('수동 재시작 필요', 0)
-            
-            if on_restart_complete:
-                on_restart_complete(False)
-            
-            return False
-            
-        except Exception as e:
-            self.node.get_logger().error(f'[Recovery] 드라이버 재시작 실패: {e}')
-            self._notify_progress('드라이버 재시작 실패', 0)
-            
-            if on_restart_complete:
-                on_restart_complete(False)
-            
-            return False
+        def restart_sequence():
+            try:
+                # 1. 기존 DSR 관련 프로세스 찾기 및 종료
+                self.node.get_logger().info('[Recovery] 기존 DSR 프로세스 종료 시도...')
+                self._notify_progress('기존 프로세스 종료 중...', 20)
+                
+                # pkill로 DSR 관련 프로세스 종료
+                subprocess.run(
+                    ['pkill', '-f', 'dsr_control2'],
+                    capture_output=True,
+                    timeout=5.0
+                )
+                subprocess.run(
+                    ['pkill', '-f', 'controller_manager'],
+                    capture_output=True,
+                    timeout=5.0
+                )
+                
+                time.sleep(2.0)  # 프로세스 정리 대기
+                
+                # 2. DSR 드라이버 런치 파일 재실행
+                self.node.get_logger().info('[Recovery] DSR 드라이버 재시작...')
+                self._notify_progress('드라이버 시작 중...', 40)
+                
+                # 백그라운드에서 드라이버 런치
+                # 환경 변수 설정
+                env = os.environ.copy()
+                env['ROS_DOMAIN_ID'] = os.environ.get('ROS_DOMAIN_ID', '0')
+                
+                # nohup으로 백그라운드 실행 (현재 프로세스와 분리)
+                launch_cmd = (
+                    'source /opt/ros/humble/setup.bash && '
+                    'source ~/cobot1_ws/install/setup.bash && '
+                    'ros2 launch dsr_bringup2 dsr_bringup2_m0609.launch.py '
+                    'mode:=real host:=192.168.137.100 port:=12345 '
+                    '> /tmp/dsr_driver_restart.log 2>&1 &'
+                )
+                
+                subprocess.Popen(
+                    launch_cmd,
+                    shell=True,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    start_new_session=True,  # 부모 프로세스와 분리
+                    env=env
+                )
+                
+                self.node.get_logger().info('[Recovery] 드라이버 런치 명령 실행됨')
+                self._notify_progress('서비스 연결 대기...', 60)
+                
+                # 3. 서비스 연결 대기 (최대 30초)
+                max_wait = 30.0
+                start_time = time.time()
+                connected = False
+                
+                while (time.time() - start_time) < max_wait:
+                    # 서비스 확인
+                    result = subprocess.run(
+                        ['ros2', 'service', 'list'],
+                        capture_output=True,
+                        text=True,
+                        timeout=5.0
+                    )
+                    
+                    if '/dsr01/system/get_robot_state' in result.stdout:
+                        self.node.get_logger().info('[Recovery] ✅ DSR 서비스 감지!')
+                        connected = True
+                        break
+                    
+                    elapsed = time.time() - start_time
+                    percent = int(60 + (elapsed / max_wait) * 30)
+                    self._notify_progress(f'서비스 대기 중... ({int(elapsed)}초)', min(percent, 90))
+                    time.sleep(2.0)
+                
+                if connected:
+                    self.node.get_logger().info('✅ [Recovery] 드라이버 재시작 성공!')
+                    self.node.get_logger().info('   → 하트비트 모니터링이 복구를 감지하면 자동으로 홈 이동')
+                    self._notify_progress('드라이버 재시작 성공! 복구 대기 중...', 95)
+                    
+                    if on_restart_complete:
+                        on_restart_complete(True)
+                    return True
+                else:
+                    self.node.get_logger().error('❌ [Recovery] 드라이버 재시작 타임아웃')
+                    self.node.get_logger().error('   수동 확인 필요: ros2 service list | grep dsr')
+                    self._notify_progress('드라이버 재시작 타임아웃', 0)
+                    
+                    if on_restart_complete:
+                        on_restart_complete(False)
+                    return False
+                    
+            except Exception as e:
+                self.node.get_logger().error(f'[Recovery] 드라이버 재시작 오류: {e}')
+                self._notify_progress(f'재시작 오류: {e}', 0)
+                
+                if on_restart_complete:
+                    on_restart_complete(False)
+                return False
+        
+        # 별도 스레드에서 실행 (메인 스레드 블로킹 방지)
+        threading.Thread(target=restart_sequence, daemon=True).start()
+        return True  # 시도 시작됨
     
     def check_driver_health(self) -> bool:
         """

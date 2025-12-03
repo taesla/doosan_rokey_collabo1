@@ -360,3 +360,16 @@ def register_socket_handlers(socketio, get_ros_node):
         except Exception as e:
             add_log('ERROR', f'원테이크 시나리오 중지 오류: {e}')
             socketio.emit('one_take_result', {'success': False, 'message': str(e)})
+
+    @socketio.on('logistics_reset')
+    def handle_logistics_reset():
+        """물류 데이터 초기화"""
+        from .data_store import reset_logistics_status, logistics_status
+        
+        print('🗑️ LOGISTICS DATA RESET')
+        reset_logistics_status()
+        add_log('INFO', '물류 데이터 초기화됨')
+        
+        # 초기화된 상태 브로드캐스트
+        socketio.emit('logistics_status', logistics_status)
+        socketio.emit('logistics_result', {'success': True, 'message': '물류 데이터 초기화 완료'})
