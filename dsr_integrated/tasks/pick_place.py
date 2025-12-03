@@ -9,6 +9,8 @@ from typing import Optional, Tuple, Callable
 
 from rclpy.node import Node
 
+from .base import BaseTask
+from ..monitoring.state_monitor import RobotStateMonitor
 from ..config.constants import (
     PHASE_PICK, PHASE_PLACE,
     DR_BASE, DR_TOOL, DR_FC_MOD_ABS,
@@ -26,10 +28,19 @@ from ..config.positions import (
 )
 
 
-class PickPlaceTask:
+class PickPlaceTask(BaseTask):
     """Pick/Place 작업 로직 (robot_pick_node 기반)"""
     
-    def __init__(self, node: Node, robot, state, firebase, config):
+    def __init__(
+        self, 
+        node: Node, 
+        robot, 
+        state, 
+        firebase, 
+        config,
+        state_monitor: Optional[RobotStateMonitor] = None,
+        recovery_checker: Optional[Callable[[], bool]] = None
+    ):
         """
         Args:
             node: ROS2 노드 인스턴스
@@ -37,8 +48,12 @@ class PickPlaceTask:
             state: StateManager 인스턴스
             firebase: FirebaseHandler 인스턴스
             config: YAML Config 인스턴스
+            state_monitor: 로봇 상태 모니터 (STANDBY 체크용)
+            recovery_checker: 복구 중인지 확인하는 콜백 함수
         """
-        self.node = node
+        # BaseTask 초기화
+        super().__init__(node, state_monitor, recovery_checker)
+        
         self.robot = robot
         self.state = state
         self.firebase = firebase
@@ -54,14 +69,38 @@ class PickPlaceTask:
         # 콜백: Place 완료 후 호출 (컨베이어 재시작용)
         self.on_place_complete: Optional[Callable[[], None]] = None
     
+    def execute(self, width_class: str = None, *args, **kwargs) -> bool:
+        """
+        Pick & Place 전체 사이클 실행 (BaseTask 구현)
+        
+        Args:
+            width_class: 분류 클래스 (SMALL/MEDIUM/LONG). None이면 pick만 수행
+            
+        Returns:
+            성공 여부
+        """
+        # pick_and_measure 먼저 실행
+        if not self.pick_and_measure():
+            return False
+        
+        # width_class가 주어지면 place도 수행
+        if width_class:
+            return self.place_to_box(width_class)
+        
+        return True
+    
     def reset_counts(self):
         """카운트 리셋"""
         self.placed_boxes = []
         self.stack_count = {"SMALL": 0, "MEDIUM": 0, "LONG": 0}
-        self.node.get_logger().info('[PickPlace] 카운트 리셋')
+        self._log('카운트 리셋')
     
     def _log(self, msg: str):
-        """로그 출력"""
+        """DLAR 포맷 로그 출력 (기존 호환)
+        
+        Note: BaseTask의 _log(level, msg)와 시그니처가 다름
+        PickPlaceTask에서는 단일 인자 버전 사용
+        """
         self.node.get_logger().info(f'[DLAR] {msg}')
     
     def _wait_for_estop_release(self) -> bool:

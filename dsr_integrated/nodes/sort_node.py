@@ -71,8 +71,12 @@ class DlarSortNode(Node):
         )
         self._setup_recovery_callbacks()
         
-        # Pick/Place 태스크 초기화
-        self.pick_place = PickPlaceTask(self, self.robot, self.state, self.firebase, self.config)
+        # Pick/Place 태스크 초기화 (BaseTask 인자 추가)
+        self.pick_place = PickPlaceTask(
+            self, self.robot, self.state, self.firebase, self.config,
+            state_monitor=self.state_monitor,
+            recovery_checker=lambda: self.recovery.is_recovering
+        )
         
         # 컨베이어 핸들러 (감지 콜백 연결)
         self.conveyor = ConveyorHandler(

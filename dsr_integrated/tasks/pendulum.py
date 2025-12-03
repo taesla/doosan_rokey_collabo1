@@ -6,25 +6,37 @@ server_node.py에서 분리
 
 import time
 import threading
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Callable
 
 from rclpy.node import Node
 from dsr_msgs2.srv import MoveJoint
 
+from .base import BaseTask
 from ..safety import SafetyManager
+from ..monitoring.state_monitor import RobotStateMonitor
 from ..web.data_store import add_log
 
 
-class PendulumController:
+class PendulumController(BaseTask):
     """진자운동 테스트 컨트롤러"""
     
-    def __init__(self, node: Node, cli_move_joint):
+    def __init__(
+        self, 
+        node: Node, 
+        cli_move_joint,
+        state_monitor: Optional[RobotStateMonitor] = None,
+        recovery_checker: Optional[Callable[[], bool]] = None
+    ):
         """
         Args:
             node: ROS2 노드 인스턴스
             cli_move_joint: MoveJoint 서비스 클라이언트
+            state_monitor: 로봇 상태 모니터 (STANDBY 체크용)
+            recovery_checker: 복구 중인지 확인하는 콜백 함수
         """
-        self.node = node
+        # BaseTask 초기화
+        super().__init__(node, state_monitor, recovery_checker)
+        
         self.cli_move_joint = cli_move_joint
         
         # 상태
@@ -43,6 +55,20 @@ class PendulumController:
         """진자운동 일시정지 여부"""
         return self.paused
     
+    def execute(self, joint_index: int = 0, amplitude: float = 15.0, vel: float = 30.0) -> bool:
+        """
+        진자운동 실행 (BaseTask 구현)
+        
+        Args:
+            joint_index: 대상 조인트 인덱스 (0-5)
+            amplitude: 진폭 (도)
+            vel: 속도 (도/초)
+            
+        Returns:
+            성공 여부
+        """
+        return self.start(joint_index, amplitude, vel)
+    
     def start(self, joint_index: int = 0, amplitude: float = 15.0, vel: float = 30.0) -> bool:
         """
         진자운동 시작
@@ -56,6 +82,12 @@ class PendulumController:
             성공 여부
         """
         if self.running:
+            return False
+        
+        # STANDBY 상태 및 복구 상태 체크
+        ready, reason = self.is_ready()
+        if not ready:
+            add_log('WARNING', f'진자운동 시작 불가: {reason}')
             return False
         
         self.params = {

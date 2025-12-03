@@ -48,6 +48,7 @@ from ..web import firebase_threads
 from ..tasks.pendulum import PendulumController
 
 # 상태 모니터링 모듈 임포트
+from ..monitoring.state_monitor import RobotStateMonitor
 from ..web.robot_monitor import (
     RobotStatusMonitor,
     joint_state_callback,
@@ -119,8 +120,16 @@ class WebServerNode(Node):
         self._create_publishers()
         self._create_service_clients()
         
-        # 진자운동 컨트롤러 초기화 (서비스 클라이언트 생성 후)
-        self.pendulum = PendulumController(self, self.cli_move_joint)
+        # 로봇 상태 모니터 (STANDBY 체크용)
+        self.state_monitor = RobotStateMonitor(self, self.callback_group)
+        
+        # 진자운동 컨트롤러 초기화 (BaseTask 인자 추가)
+        self.pendulum = PendulumController(
+            self, 
+            self.cli_move_joint,
+            state_monitor=self.state_monitor
+            # recovery_checker는 server_node에서 사용하지 않음
+        )
         
         # 상태 모니터 초기화
         self.status_monitor = RobotStatusMonitor(self, {
