@@ -543,9 +543,13 @@ class WebServerNode(Node):
     def run_stacking_task(self) -> bool:
         """2차 적재(테트리스) 실행 - 충돌 복구 지원"""
         try:
-            from ..tasks.stacking import StackingTask
+            from ..tasks.stacking import StackingTask, set_socketio_emit
             from ..core.robot_controller import RobotController
             from ..safety.collision_recovery import CollisionRecovery
+            
+            # SocketIO emit 연결
+            from ..web import socketio
+            set_socketio_emit(socketio.emit)
             
             # 로봇 컨트롤러 생성
             robot = RobotController(self, self.callback_group)

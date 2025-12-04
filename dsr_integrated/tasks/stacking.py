@@ -7,6 +7,7 @@
 - MEDIUM 2개, LONG 2개, SMALL 2개를 2차 구역으로 이동
 - 조인트 기반 티칭 좌표 사용
 - 충돌 발생 시 CollisionRecovery 연동
+- 웹 UI로 진행 상태 실시간 전송
 """
 
 import time
@@ -18,6 +19,7 @@ from rclpy.callback_groups import ReentrantCallbackGroup
 from .base import BaseTask
 from ..monitoring.state_monitor import RobotStateMonitor
 from ..safety.collision_recovery import CollisionRecovery
+from ..web.data_store import add_log
 from ..config.constants import (
     STACKING_V_MOVE, STACKING_A_MOVE,
     STACKING_V_JOINT, STACKING_A_JOINT,
@@ -34,6 +36,29 @@ from ..config.stacking_positions import (
     MEDIUM_2_GRIP_POSX, SMALL_GRIP_XY, SMALL_GRIP_Z, SMALL_PLACE_POSX,
     PLACEMENT_ORDER,
 )
+
+# SocketIO emit을 위한 전역 함수
+_socketio_emit = None
+
+def set_socketio_emit(emit_func):
+    """SocketIO emit 함수 설정"""
+    global _socketio_emit
+    _socketio_emit = emit_func
+
+def _emit_stacking_progress(step: int, total: int, message: str, box_info: dict = None):
+    """웹 UI로 적재 진행 상태 전송"""
+    global _socketio_emit
+    if _socketio_emit:
+        try:
+            _socketio_emit('stacking_progress', {
+                'step': step,
+                'total': total,
+                'percent': int((step / total) * 100) if total > 0 else 0,
+                'message': message,
+                'box_info': box_info
+            })
+        except Exception as e:
+            print(f"[Stacking] emit error: {e}")
 
 
 class StackingTask(BaseTask):
@@ -77,6 +102,10 @@ class StackingTask(BaseTask):
         self._log('INFO', '순서: MEDIUM1 → LONG1 → LONG2 → MEDIUM2 → SMALL1 → SMALL2')
         self._log('INFO', '=' * 50)
         
+        # 웹 UI 알림
+        add_log('INFO', '📦 [2차 적재] 테트리스 재배치 시작')
+        _emit_stacking_progress(0, 6, '2차 적재 시작')
+        
         # HOME으로 이동
         home = self.robot.posx(*HOME_POSITION_TUPLE)
         self.robot.movel(home, vel=STACKING_V_MOVE, acc=STACKING_A_MOVE)
@@ -85,19 +114,31 @@ class StackingTask(BaseTask):
             self.current_step = idx + 1
             self._current_box_info = (width_class, pick_idx, place_idx)
             
-            self._log('INFO', f'[사이클 {self.current_step}/6] {width_class} 그립{pick_idx+1} → 적재{place_idx+1}')
+            step_msg = f'{width_class} 그립{pick_idx+1} → 적재{place_idx+1}'
+            self._log('INFO', f'[사이클 {self.current_step}/6] {step_msg}')
+            
+            # 웹 UI 진행 상태 전송
+            add_log('INFO', f'📦 [2차 적재 {self.current_step}/6] {step_msg}')
+            _emit_stacking_progress(self.current_step, 6, step_msg, {
+                'width_class': width_class,
+                'pick_idx': pick_idx,
+                'place_idx': place_idx
+            })
             
             # 비상정지/충돌 체크
             if not self._check_ready_or_log():
                 # 충돌 발생 시 복구 시도
                 if self.collision_recovery and not self.collision_recovery.is_recovering:
                     self._log('WARNING', '[2차 적재] 충돌 감지 - 복구 시도')
+                    add_log('WARN', '⚠️ [2차 적재] 충돌 감지 - 복구 시도')
                     if self._attempt_recovery():
                         self._log('INFO', '[2차 적재] 복구 성공 - 현재 사이클 재시도')
+                        add_log('INFO', '✅ [2차 적재] 복구 성공 - 재시도')
                         # 현재 사이클 재시도 (idx 유지)
                         continue
                     else:
                         self._log('ERROR', '[2차 적재] 복구 실패 - 작업 중단')
+                        add_log('ERROR', '❌ [2차 적재] 복구 실패')
                         self.is_running = False
                         return False
                 else:
@@ -134,6 +175,10 @@ class StackingTask(BaseTask):
         self._log('INFO', '=' * 50)
         self._log('INFO', '[2차 적재] 테트리스 재배치 완료 (총 6개)')
         self._log('INFO', '=' * 50)
+        
+        # 웹 UI 완료 알림
+        add_log('INFO', '✅ [2차 적재] 테트리스 재배치 완료!')
+        _emit_stacking_progress(6, 6, '2차 적재 완료')
         
         self.is_running = False
         self._current_action = 'idle'
