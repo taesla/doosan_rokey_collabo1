@@ -709,10 +709,10 @@ class PickPlaceTask(BaseTask):
         # ★ 작업 단계 설정 (복구용) - Home으로 복귀 중
         self._set_action('returning_home')
         
-        # ★ 컨베이어 재시작 콜백
+        # ★ 컨베이어 재시작 콜백 (딜레이 최소화)
         if self.on_place_complete:
-            self._log("[PLACE] 위로 복귀 완료 - 3초 후 컨베이어 재시작")
-            time.sleep(3.0)
+            self._log("[PLACE] 위로 복귀 완료 - 컨베이어 즉시 재시작")
+            time.sleep(0.3)  # 최소 안정화 딜레이
             self.on_place_complete()
         
         # ==============================

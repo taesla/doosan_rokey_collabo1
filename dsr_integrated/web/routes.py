@@ -21,13 +21,13 @@ routes_bp = Blueprint('routes', __name__)
 @routes_bp.route('/')
 def index():
     """메인 페이지"""
-    return render_template('index.html')
+    return render_template('index_full.html')
 
 
 @routes_bp.route('/external')
 def external():
     """외부 접속용 페이지"""
-    return render_template('index_tabbed.html')
+    return render_template('index_full.html')
 
 
 @routes_bp.route('/api/status')

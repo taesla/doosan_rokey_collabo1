@@ -63,7 +63,7 @@ class SortState:
     # 작업 단계
     current_phase: int = PHASE_PICK
     z_touch: float = field(default_factory=lambda: HOME_POSITION[2])
-    cycle_count: int = 0
+    cycle_count: int = 0           # 현재 사이클
     last_width_class: Optional[str] = None
     
     # 복구용 상태 정보
@@ -281,7 +281,9 @@ class StateManager:
                 data = json.load(f)
                 self.state.current_phase = data.get("phase", PHASE_PICK)
                 self.state.z_touch = data.get("z_touch", HOME_POSITION[2])
+                # cycle_count 로드 (Firebase 복원 우선)
                 self.state.cycle_count = data.get("cycle_count", 0)
+                self.log(f'상태 로드: 사이클 {self.state.cycle_count}회')
         except Exception as e:
             self.log(f'상태 로드 실패: {e}', 'warn')
     
@@ -294,7 +296,7 @@ class StateManager:
             'is_running': self.state.is_running,
             'is_paused': self.state.is_paused,
             'current_phase': 'PICK' if self.state.current_phase == PHASE_PICK else 'PLACE',
-            'cycle_count': self.state.cycle_count,
+            'cycle_count': self.state.cycle_count,                  # 현재 사이클
             'last_classification': self.state.last_width_class,
             'dsr_ready': self.state.dsr_ready,
             'conveyor_mode': self.state.conveyor_mode,

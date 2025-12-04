@@ -266,6 +266,77 @@ class RobotController:
             return True
         return False
     
+    def movej(self, pos, vel=30, acc=60, time_val=0.0, radius=0.0) -> bool:
+        """
+        조인트 이동 (MoveJoint) - 동기 호출
+        
+        Args:
+            pos: 목표 조인트 각도 [j1, j2, j3, j4, j5, j6] (deg)
+            vel: 속도 (deg/s)
+            acc: 가속도 (deg/s²)
+            time_val: 이동 시간 (0이면 vel/acc 사용)
+            radius: 블렌딩 반경
+            
+        Returns:
+            성공 여부
+        """
+        if not self.cli_move_joint.service_is_ready():
+            if not self.cli_move_joint.wait_for_service(timeout_sec=1.0):
+                self.node.get_logger().error('move_joint 서비스 준비 안됨')
+                return False
+        
+        req = MoveJoint.Request()
+        req.pos = np.array(pos, dtype=np.float64)
+        req.vel = float(vel)
+        req.acc = float(acc)
+        req.time = float(time_val)
+        req.radius = float(radius)
+        req.mode = 0  # 절대 좌표
+        req.blend_type = 0
+        req.sync_type = 0
+        
+        future = self.cli_move_joint.call_async(req)
+        
+        if not wait_for_future(future, timeout=30.0):
+            self.node.get_logger().warn('movej 타임아웃')
+            return False
+        
+        if future.result() is not None:
+            return future.result().success
+        else:
+            self.node.get_logger().warn('movej 실패')
+        return False
+    
+    @staticmethod
+    def posj(*args):
+        """
+        조인트 좌표 생성 헬퍼
+        
+        Args:
+            *args: j1, j2, j3, j4, j5, j6 또는 (j1, j2, j3, j4, j5, j6)
+            
+        Returns:
+            list: [j1, j2, j3, j4, j5, j6]
+        """
+        if len(args) == 1 and hasattr(args[0], '__iter__'):
+            return list(args[0])
+        return list(args)
+    
+    @staticmethod
+    def posx(*args):
+        """
+        직교 좌표 생성 헬퍼
+        
+        Args:
+            *args: x, y, z, rx, ry, rz 또는 (x, y, z, rx, ry, rz)
+            
+        Returns:
+            list: [x, y, z, rx, ry, rz]
+        """
+        if len(args) == 1 and hasattr(args[0], '__iter__'):
+            return list(args[0])
+        return list(args)
+    
     # =========================================
     # 위치/센서 조회
     # =========================================
@@ -392,6 +463,15 @@ class RobotController:
         self.set_digital_output(1, 1)
         self.set_digital_output(2, 0)
         time.sleep(0.3)
+    
+    # Alias for compatibility with stacking task
+    def grip_off(self):
+        """그리퍼 열기 (alias)"""
+        self.grip_open()
+    
+    def grip_on(self):
+        """그리퍼 닫기 (alias)"""
+        self.grip_close()
     
     def is_gripping(self) -> bool:
         """

@@ -248,6 +248,55 @@ class WebServerNode(Node):
     def _update_robot_status(self):
         """로봇 상태 정보 업데이트 (RobotStatusMonitor 위임)"""
         self.status_monitor.update_robot_status()
+        
+        # 원테이크 시나리오: 1차 분류 완료 후 2차 적재 자동 시작
+        self._check_one_take_auto_stacking()
+    
+    def _check_one_take_auto_stacking(self):
+        """원테이크 시나리오: 1차 분류 완료 시 2차 적재 자동 시작"""
+        from ..web.data_store import one_take_status
+        
+        # start_stacking 플래그가 True이면 2차 적재 시작
+        if one_take_status.get('start_stacking'):
+            one_take_status['start_stacking'] = False  # 플래그 초기화
+            
+            self.get_logger().info('🔄 원테이크: 1차 분류 완료 → 2차 적재 자동 시작')
+            
+            # 분류 정지 및 컨베이어 OFF
+            self.call_stop_sort()
+            self.call_conveyor_mode(False)
+            
+            # 2차 적재 백그라운드 실행
+            import threading
+            def run_auto_stacking():
+                try:
+                    add_log('INFO', '📦 [원테이크] 2차 적재 자동 시작')
+                    success = self.run_stacking_task()
+                    
+                    if success:
+                        one_take_status['stacking_complete'] = True
+                        one_take_status['phase'] = 'COMPLETE'
+                        one_take_status['running'] = False
+                        add_log('INFO', '✅ [원테이크] 전체 시나리오 완료!')
+                        socketio.emit('one_take_result', {
+                            'success': True,
+                            'message': '원테이크 시나리오 완료 (1차 분류 + 2차 적재)'
+                        })
+                    else:
+                        add_log('ERROR', '❌ [원테이크] 2차 적재 실패')
+                        socketio.emit('one_take_result', {
+                            'success': False,
+                            'message': '2차 적재 실패'
+                        })
+                    
+                    socketio.emit('one_take_status', one_take_status)
+                    
+                except Exception as e:
+                    add_log('ERROR', f'2차 적재 오류: {e}')
+                    one_take_status['phase'] = 'ERROR'
+                    socketio.emit('one_take_result', {'success': False, 'message': str(e)})
+            
+            threading.Thread(target=run_auto_stacking, daemon=True).start()
     
     def _recovery_status_callback(self, msg):
         """복구 상태 콜백 → SocketIO로 전달"""
@@ -489,6 +538,41 @@ class WebServerNode(Node):
         return True
     
     # =========================================
+    # 2차 적재 (StackingTask)
+    # =========================================
+    def run_stacking_task(self) -> bool:
+        """2차 적재(테트리스) 실행"""
+        try:
+            from ..tasks.stacking import StackingTask
+            from ..core.robot_controller import RobotController
+            
+            # 로봇 컨트롤러 생성
+            robot = RobotController(self, self.callback_group)
+            
+            # StackingTask 생성 및 실행
+            stacking = StackingTask(
+                node=self,
+                robot=robot,
+                state_monitor=self.state_monitor
+            )
+            
+            self.get_logger().info("📦 2차 적재 시작")
+            result = stacking.execute()
+            
+            if result:
+                self.get_logger().info("✅ 2차 적재 완료")
+            else:
+                self.get_logger().error("❌ 2차 적재 실패")
+            
+            return result
+            
+        except Exception as e:
+            self.get_logger().error(f"2차 적재 오류: {e}")
+            import traceback
+            traceback.print_exc()
+            return False
+    
+    # =========================================
     # 진자운동 테스트 (PendulumController 위임)
     # =========================================
     @property
@@ -532,6 +616,8 @@ def ros2_spin_thread(node):
 
 def emit_robot_data():
     """웹소켓 데이터 전송"""
+    from ..web.data_store import one_take_status
+    
     while True:
         if robot_data['connected']:
             if ros_node:
@@ -540,6 +626,7 @@ def emit_robot_data():
             socketio.emit('robot_state', robot_data)
             socketio.emit('sort_status', sort_status)
             socketio.emit('conveyor_status', conveyor_status)
+            socketio.emit('one_take_status', one_take_status)
             socketio.emit('logs', logs[:20])
             socketio.emit('ui_state', ui_state)
         time.sleep(0.1)

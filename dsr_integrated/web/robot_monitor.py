@@ -17,7 +17,7 @@ from dsr_msgs2.srv import (
     GetCtrlBoxDigitalOutput,
 )
 
-from .data_store import robot_data, sort_status, conveyor_status, add_log
+from .data_store import robot_data, sort_status, conveyor_status, add_log, one_take_status, logistics_status
 
 
 class RobotStatusMonitor:
@@ -233,6 +233,21 @@ def sort_status_callback(msg):
     try:
         data = json.loads(msg.data)
         sort_status.update(data)
+        
+        # 원테이크 시나리오: 1차 분류 9개 완료 감지
+        if one_take_status.get('running') and one_take_status.get('phase') == 'SORTING':
+            # logistics_status에서 총 개수 확인
+            total = logistics_status.get('total_count', 0)
+            one_take_status['total_sorted'] = total
+            
+            # 9개 완료 시 2차 적재 자동 시작 트리거
+            if total >= 9 and not one_take_status.get('sorting_complete'):
+                one_take_status['sorting_complete'] = True
+                one_take_status['phase'] = 'STACKING'
+                add_log('INFO', '✅ 1차 분류 완료 (9개) → 2차 적재 자동 시작')
+                
+                # 2차 적재 시작 이벤트 발생 (server_node에서 처리)
+                one_take_status['start_stacking'] = True
     except:
         pass
 

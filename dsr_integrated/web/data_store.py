@@ -103,7 +103,7 @@ sort_status = {
     'running': False,
     'paused': False,
     'phase': 'PICK',
-    'cycle_count': 0,
+    'cycle_count': 0,          # 현재 사이클 (session)
     'last_width': None,
     'dsr_ready': False,
 }
@@ -144,6 +144,20 @@ ui_state = {
     'is_moving': False,
     'is_stopped': False,
     'paused_task': None
+}
+
+# ============================================
+# 원테이크 시나리오 상태
+# ============================================
+one_take_status = {
+    'running': False,
+    'phase': 'IDLE',           # IDLE, SORTING, STACKING, COMPLETE, ERROR
+    'sorting_complete': False,  # 1차 분류 9개 완료
+    'stacking_complete': False, # 2차 적재 6개 완료
+    'stacking_step': 0,        # 현재 적재 단계 (0-6)
+    'total_sorted': 0,         # 분류된 박스 개수
+    'target_count': 9,         # 목표 분류 개수
+    'start_stacking': False,   # 2차 적재 시작 트리거 (내부용)
 }
 
 # ============================================
@@ -223,6 +237,30 @@ def reset_logistics_status():
     logistics_status['z_touch'] = 0.0
     logistics_status['pick_ok'] = False
     logistics_status['total_count'] = 0
+
+
+def reset_all_status():
+    """전체 상태 초기화 (새로 시작)"""
+    # 분류 상태 초기화
+    sort_status['running'] = False
+    sort_status['paused'] = False
+    sort_status['phase'] = 'PICK'
+    sort_status['cycle_count'] = 0
+    sort_status['last_width'] = None
+    
+    # 물류 적재 상태 초기화
+    reset_logistics_status()
+    
+    # 원테이크 상태 초기화
+    one_take_status['running'] = False
+    one_take_status['phase'] = 'IDLE'
+    one_take_status['sorting_complete'] = False
+    one_take_status['stacking_complete'] = False
+    one_take_status['stacking_step'] = 0
+    one_take_status['total_sorted'] = 0
+    one_take_status['start_stacking'] = False
+    
+    add_log('INFO', '전체 상태 초기화 완료')
 
 
 def update_conveyor_status(status: str = None, code: int = None):

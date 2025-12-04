@@ -8,7 +8,8 @@ import json
 import time
 
 from .data_store import (
-    robot_data, sort_status, ui_state, logs
+    robot_data, sort_status, ui_state, logs,
+    one_take_status, logistics_status
 )
 
 
@@ -60,6 +61,10 @@ def init_firebase():
         firebase_enabled = True
         
         print("✅ Firebase 연동 활성화")
+        
+        # 시작 시 Firebase에서 상태 복원
+        restore_status_from_firebase()
+        
         return True
         
     except ImportError:
@@ -68,6 +73,48 @@ def init_firebase():
         print(f"⚠️ Firebase 초기화 실패: {e}")
     
     return False
+
+
+def restore_status_from_firebase():
+    """Firebase에서 마지막 상태 복원 (리커버리 모드)"""
+    global firebase_ref
+    
+    if not firebase_enabled or firebase_ref is None:
+        return
+    
+    try:
+        data = firebase_ref.get()
+        if not data:
+            print("📥 Firebase: 복원할 데이터 없음 (새로 시작)")
+            return
+        
+        # 물류 적재 상태 복원
+        if 'logistics' in data:
+            logi = data['logistics']
+            if 'stack_count' in logi:
+                logistics_status['stack_count'] = logi['stack_count']
+                logistics_status['total_count'] = sum(logi['stack_count'].values())
+            print(f"📥 Firebase 복원: 적재 현황 {logistics_status['stack_count']}")
+        
+        # 분류 상태 복원
+        if 'sort_status' in data:
+            ss = data['sort_status']
+            sort_status['cycle_count'] = ss.get('cycle_count', ss.get('session_cycle_count', 0))
+            sort_status['last_width'] = ss.get('last_width')
+            print(f"📥 Firebase 복원: 사이클 {sort_status['cycle_count']}, 마지막 분류 {sort_status['last_width']}")
+        
+        # 원테이크 상태 복원
+        if 'one_take' in data:
+            ot = data['one_take']
+            one_take_status['total_sorted'] = ot.get('total_sorted', 0)
+            one_take_status['phase'] = ot.get('phase', 'IDLE')
+            # running은 복원하지 않음 (재시작 시 수동으로 시작 필요)
+            print(f"📥 Firebase 복원: 원테이크 {one_take_status['phase']}, 분류 {one_take_status['total_sorted']}개")
+        
+        print("✅ Firebase에서 상태 복원 완료")
+        
+    except Exception as e:
+        print(f"⚠️ Firebase 상태 복원 실패: {e}")
 
 
 def firebase_upload_thread(get_ros_node):
@@ -81,38 +128,61 @@ def firebase_upload_thread(get_ros_node):
     
     while True:
         try:
-            if robot_data['connected']:
-                ros_node = get_ros_node()
-                if ros_node:
-                    ui_state['pendulum_running'] = ros_node.pendulum_running
-                
-                recent_logs = logs[-20:] if logs else []
-                
-                upload_data = {
-                    'timestamp': time.time(),
-                    'connected': robot_data['connected'],
-                    'joint_position': robot_data['actual_joint_position'],
-                    'tcp_position': robot_data['actual_tcp_position'],
-                    'robot_state': robot_data['robot_state'],
-                    'robot_mode': robot_data['robot_mode'],
-                    'operation_speed': robot_data['operation_speed_rate'],
-                    'access_control': robot_data['access_control'],
-                    'gripper': {
-                        'do1': (robot_data['controller_digital_output'] >> 0) & 1,
-                        'do2': (robot_data['controller_digital_output'] >> 1) & 1,
-                    },
-                    'ui_state': ui_state,
-                    'sort_status': {
-                        'running': sort_status.get('running', False),
-                        'paused': sort_status.get('paused', False),
-                        'phase': sort_status.get('phase', 'IDLE'),
-                        'cycle_count': sort_status.get('cycle_count', 0),
-                        'last_width': sort_status.get('last_width', None),
-                        'dsr_ready': sort_status.get('dsr_ready', False),
-                    },
-                    'logs': recent_logs
-                }
-                firebase_ref.update(upload_data)
+            # 로봇 연결 여부와 무관하게 항상 업로드 (분류/적재 데이터 보존)
+            ros_node = get_ros_node()
+            if ros_node:
+                ui_state['pendulum_running'] = ros_node.pendulum_running
+            
+            recent_logs = logs[-20:] if logs else []
+            
+            upload_data = {
+                'timestamp': time.time(),
+                'connected': robot_data['connected'],
+                'joint_position': robot_data['actual_joint_position'],
+                'tcp_position': robot_data['actual_tcp_position'],
+                'robot_state': robot_data['robot_state'],
+                'robot_mode': robot_data['robot_mode'],
+                'operation_speed': robot_data['operation_speed_rate'],
+                'access_control': robot_data['access_control'],
+                'gripper': {
+                    'do1': (robot_data['controller_digital_output'] >> 0) & 1,
+                    'do2': (robot_data['controller_digital_output'] >> 1) & 1,
+                },
+                'ui_state': ui_state,
+                # 1차 분류 상태
+                'sort_status': {
+                    'running': sort_status.get('running', False),
+                    'paused': sort_status.get('paused', False),
+                    'phase': sort_status.get('phase', 'IDLE'),
+                    'cycle_count': sort_status.get('cycle_count', 0),
+                    'last_width': sort_status.get('last_width', None),
+                    'dsr_ready': sort_status.get('dsr_ready', False),
+                },
+                # 2차 적재 상태 (테트리스)
+                'stacking_status': {
+                    'running': one_take_status.get('phase') == 'STACKING',
+                    'phase': one_take_status.get('phase', 'IDLE'),
+                    'current_step': one_take_status.get('stacking_step', 0),
+                    'total_steps': 6,
+                    'sorting_complete': one_take_status.get('sorting_complete', False),
+                    'stacking_complete': one_take_status.get('stacking_complete', False),
+                },
+                # 물류 적재 현황
+                'logistics': {
+                    'stack_count': logistics_status.get('stack_count', {}),
+                    'total_count': logistics_status.get('total_count', 0),
+                    'placed_boxes': len(logistics_status.get('placed_boxes', [])),
+                },
+                # 원테이크 시나리오 상태
+                'one_take': {
+                    'running': one_take_status.get('running', False),
+                    'phase': one_take_status.get('phase', 'IDLE'),
+                    'total_sorted': one_take_status.get('total_sorted', 0),
+                    'target_count': one_take_status.get('target_count', 9),
+                },
+                'logs': recent_logs
+            }
+            firebase_ref.update(upload_data)
         except Exception as e:
             print(f"Firebase 업로드 오류: {e}")
         

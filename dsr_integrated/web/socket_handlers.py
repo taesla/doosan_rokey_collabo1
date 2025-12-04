@@ -4,8 +4,8 @@ SocketIO 이벤트 핸들러 모듈
 """
 
 from .data_store import (
-    robot_data, sort_status, conveyor_status,
-    ui_state, logs, add_log
+    robot_data, sort_status, conveyor_status, logistics_status,
+    ui_state, logs, add_log, one_take_status
 )
 from ..safety import SafetyManager
 
@@ -125,11 +125,16 @@ def register_socket_handlers(socketio, get_ros_node):
     def handle_move_home(data):
         """홈 이동"""
         ros_node = get_ros_node()
-        # type: 'user' = 사용자홈(1), 'mechanical' = 기계적홈(0)
-        home_type = data.get('type', 'user')
-        target = 0 if home_type == 'mechanical' else 1
+        # target: 0=기계적홈, 1=사용자홈 (직접 전달)
+        # 또는 type: 'mechanical'/'user' (레거시 호환)
+        if 'target' in data:
+            target = data.get('target', 1)
+        else:
+            home_type = data.get('type', 'user')
+            target = 0 if home_type == 'mechanical' else 1
+        
         home_name = "기계적 홈" if target == 0 else "사용자 홈"
-        print(f'🏠 Move Home: {home_name}')
+        print(f'🏠 Move Home: {home_name} (target={target})')
         
         if ros_node:
             success = ros_node.move_home(target)
@@ -158,10 +163,21 @@ def register_socket_handlers(socketio, get_ros_node):
 
     @socketio.on('emergency_stop')
     def handle_estop():
-        """긴급정지 - SafetyManager를 통해 전역 처리"""
+        """긴급정지 - SafetyManager + ROS 서비스 호출"""
         print('🛑 EMERGENCY STOP')
         
+        # 1. SafetyManager 통해 전역 상태 설정
         success = SafetyManager.emergency_stop("웹 UI 비상정지")
+        
+        # 2. ROS 서비스 호출 (sort_node의 비상정지)
+        ros_node = get_ros_node()
+        if ros_node:
+            try:
+                ros_success, ros_msg = ros_node.call_stop_sort()
+                print(f'🛑 ROS 비상정지: {ros_success} - {ros_msg}')
+            except Exception as e:
+                print(f'⚠️ ROS 비상정지 호출 실패: {e}')
+        
         if success:
             add_log('ERROR', '🛑 긴급정지 실행')
             # 비상정지 상태 브로드캐스트
@@ -302,10 +318,8 @@ def register_socket_handlers(socketio, get_ros_node):
     def handle_one_take_start():
         """
         원테이크 시나리오 시작
-        1. 홈 위치로 이동
-        2. 컨베이어 자동 모드 활성화
-        3. 분류 작업 시작
-        → 자동으로 detect → 분류 → 반복
+        1. 1차 분류: 컨베이어 → 분류 구역 (9개)
+        2. 2차 적재: 분류 구역 → 적재 구역 (6개 테트리스)
         """
         ros_node = get_ros_node()
         print('🚀 ONE TAKE SCENARIO START')
@@ -316,23 +330,36 @@ def register_socket_handlers(socketio, get_ros_node):
             return
         
         try:
+            # 원테이크 상태 초기화
+            one_take_status['running'] = True
+            one_take_status['phase'] = 'SORTING'
+            one_take_status['sorting_complete'] = False
+            one_take_status['stacking_complete'] = False
+            one_take_status['stacking_step'] = 0
+            one_take_status['total_sorted'] = 0
+            
             # Step 1: 컨베이어 자동 모드 활성화 (내부에서 홈 이동 + 분류 시작)
             success, message = ros_node.call_conveyor_mode(True)
             
             if success:
                 add_log('INFO', '🚀 원테이크 시나리오 시작!')
+                add_log('INFO', '  [1단계] 1차 분류 시작 (목표: 9개)')
                 add_log('INFO', '  → 컨베이어 자동 모드 활성화')
-                add_log('INFO', '  → 홈 위치로 이동 중...')
-                add_log('INFO', '  → 물체 감지 대기 중')
+                add_log('INFO', '  → 물체 감지 대기 중...')
                 socketio.emit('one_take_result', {
                     'success': True, 
-                    'message': '원테이크 시나리오 시작됨 - 물체 감지 대기 중'
+                    'message': '원테이크 시나리오 시작됨 - 1차 분류 진행 중'
                 })
+                socketio.emit('one_take_status', one_take_status)
             else:
+                one_take_status['running'] = False
+                one_take_status['phase'] = 'IDLE'
                 add_log('ERROR', f'원테이크 시나리오 시작 실패: {message}')
                 socketio.emit('one_take_result', {'success': False, 'message': message})
                 
         except Exception as e:
+            one_take_status['running'] = False
+            one_take_status['phase'] = 'IDLE'
             add_log('ERROR', f'원테이크 시나리오 오류: {e}')
             socketio.emit('one_take_result', {'success': False, 'message': str(e)})
 
@@ -354,12 +381,63 @@ def register_socket_handlers(socketio, get_ros_node):
             # 2. 컨베이어 자동 모드 비활성화
             ros_node.call_conveyor_mode(False)
             
+            # 3. 원테이크 상태 초기화
+            one_take_status['running'] = False
+            one_take_status['phase'] = 'IDLE'
+            
             add_log('INFO', '⏹️ 원테이크 시나리오 중지됨')
             socketio.emit('one_take_result', {'success': True, 'message': '원테이크 시나리오 중지됨'})
+            socketio.emit('one_take_status', one_take_status)
             
         except Exception as e:
             add_log('ERROR', f'원테이크 시나리오 중지 오류: {e}')
             socketio.emit('one_take_result', {'success': False, 'message': str(e)})
+    
+    @socketio.on('stacking_start')
+    def handle_stacking_start():
+        """2차 적재 수동 시작"""
+        ros_node = get_ros_node()
+        print('📦 STACKING START')
+        
+        if not ros_node:
+            add_log('ERROR', 'ROS 노드 초기화 안됨')
+            socketio.emit('stacking_result', {'success': False, 'message': 'ROS 노드 초기화 안됨'})
+            return
+        
+        try:
+            # 분류 먼저 정지
+            ros_node.call_stop_sort()
+            ros_node.call_conveyor_mode(False)
+            
+            add_log('INFO', '📦 2차 적재(테트리스) 시작')
+            add_log('INFO', '  순서: MEDIUM→LARGE→LARGE→MEDIUM→SMALL→SMALL')
+            
+            # 2차 적재 실행 (백그라운드 스레드)
+            import threading
+            def run_stacking():
+                try:
+                    success = ros_node.run_stacking_task()
+                    if success:
+                        add_log('INFO', '✅ 2차 적재 완료!')
+                        socketio.emit('stacking_result', {'success': True, 'message': '2차 적재 완료'})
+                    else:
+                        add_log('ERROR', '2차 적재 실패')
+                        socketio.emit('stacking_result', {'success': False, 'message': '2차 적재 실패'})
+                except Exception as e:
+                    add_log('ERROR', f'2차 적재 오류: {e}')
+                    socketio.emit('stacking_result', {'success': False, 'message': str(e)})
+            
+            threading.Thread(target=run_stacking, daemon=True).start()
+            socketio.emit('stacking_result', {'success': True, 'message': '2차 적재 시작됨'})
+            
+        except Exception as e:
+            add_log('ERROR', f'2차 적재 시작 오류: {e}')
+            socketio.emit('stacking_result', {'success': False, 'message': str(e)})
+    
+    @socketio.on('get_one_take_status')
+    def handle_get_one_take_status():
+        """원테이크 상태 조회"""
+        socketio.emit('one_take_status', one_take_status)
 
     @socketio.on('logistics_reset')
     def handle_logistics_reset():
@@ -373,3 +451,18 @@ def register_socket_handlers(socketio, get_ros_node):
         # 초기화된 상태 브로드캐스트
         socketio.emit('logistics_status', logistics_status)
         socketio.emit('logistics_result', {'success': True, 'message': '물류 데이터 초기화 완료'})
+
+    @socketio.on('reset_all')
+    def handle_reset_all():
+        """전체 상태 초기화 (새로 시작)"""
+        from .data_store import reset_all_status, logistics_status, sort_status, one_take_status
+        
+        print('🗑️ RESET ALL - 전체 초기화')
+        reset_all_status()
+        add_log('INFO', '전체 상태 초기화 - 새로 시작')
+        
+        # 초기화된 상태 브로드캐스트
+        socketio.emit('logistics_status', logistics_status)
+        socketio.emit('sort_status', sort_status)
+        socketio.emit('one_take_status', one_take_status)
+        socketio.emit('reset_all_result', {'success': True, 'message': '전체 초기화 완료'})

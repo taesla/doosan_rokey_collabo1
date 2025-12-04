@@ -168,3 +168,13 @@ RECOVERY_JOG_AXIS_Z = 8         # Z축 Jog (JOG_TASK_Z)
 CTRL_RESET_SAFE_STOP = CONTROL_RESET_SAFE_STOP   # 2
 CTRL_SERVO_ON = CONTROL_RESET_SAFE_OFF           # 3
 CTRL_RESET_RECOVERY = CONTROL_RESET_RECOVERY     # 7
+
+# =========================================
+# 2차 적재(테트리스) 속도 설정 (50% 감속)
+# =========================================
+STACKING_V_MOVE = 50.0          # 이동 속도 (mm/s)
+STACKING_A_MOVE = 100.0         # 이동 가속도 (mm/s²)
+STACKING_V_JOINT = 25           # 조인트 이동 속도 (deg/s)
+STACKING_A_JOINT = 50           # 조인트 이동 가속도 (deg/s²)
+STACKING_V_PLACE = 10           # 적재 하강 속도 (deg/s)
+STACKING_A_PLACE = 15           # 적재 하강 가속도 (deg/s²)

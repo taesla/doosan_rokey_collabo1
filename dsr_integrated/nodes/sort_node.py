@@ -214,7 +214,7 @@ class DlarSortNode(Node):
             'target_place_position': self.state.state.target_place_position,
             'object_width_class': self.state.state.last_width_class,
             'object_width_mm': getattr(self, '_last_width_mm', None),
-            'cycle_count': self.state.state.cycle_count,  # cycle_count 추가
+            'cycle_count': self.state.state.cycle_count,
         }
         recovery_msg = String()
         recovery_msg.data = json.dumps(recovery_data)
