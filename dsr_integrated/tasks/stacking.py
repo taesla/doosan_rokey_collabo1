@@ -6,15 +6,18 @@
 - 1차 적재(분류) 완료 후 실행
 - MEDIUM 2개, LONG 2개, SMALL 2개를 2차 구역으로 이동
 - 조인트 기반 티칭 좌표 사용
+- 충돌 발생 시 CollisionRecovery 연동
 """
 
 import time
 from typing import Optional, Callable
 
 from rclpy.node import Node
+from rclpy.callback_groups import ReentrantCallbackGroup
 
 from .base import BaseTask
 from ..monitoring.state_monitor import RobotStateMonitor
+from ..safety.collision_recovery import CollisionRecovery
 from ..config.constants import (
     STACKING_V_MOVE, STACKING_A_MOVE,
     STACKING_V_JOINT, STACKING_A_JOINT,
@@ -34,22 +37,31 @@ from ..config.stacking_positions import (
 
 
 class StackingTask(BaseTask):
-    """2차 적재(테트리스) 태스크"""
+    """2차 적재(테트리스) 태스크 - 충돌 복구 지원"""
     
     def __init__(
         self,
         node: Node,
         robot,
         state_monitor: Optional[RobotStateMonitor] = None,
-        recovery_checker: Optional[Callable[[], bool]] = None
+        recovery_checker: Optional[Callable[[], bool]] = None,
+        collision_recovery: Optional[CollisionRecovery] = None,
+        callback_group: Optional[ReentrantCallbackGroup] = None
     ):
         super().__init__(node, state_monitor, recovery_checker)
         self.robot = robot
+        self.collision_recovery = collision_recovery
+        self.callback_group = callback_group
         
         # 진행 상태
         self.current_step = 0
         self.total_steps = len(PLACEMENT_ORDER)
         self.is_running = False
+        
+        # 복구용 작업 상태
+        self._current_action = 'idle'  # idle, picking, placing
+        self._current_box_info = None  # (width_class, pick_idx, place_idx)
+        self._is_gripping = False
     
     def execute(self) -> bool:
         """6개 박스 2차 적재 실행"""
@@ -58,6 +70,7 @@ class StackingTask(BaseTask):
         
         self.is_running = True
         self.current_step = 0
+        self._current_action = 'idle'
         
         self._log('INFO', '=' * 50)
         self._log('INFO', '[2차 적재] 테트리스 재배치 시작 (총 6개)')
@@ -70,26 +83,50 @@ class StackingTask(BaseTask):
         
         for idx, (width_class, pick_idx, place_idx) in enumerate(PLACEMENT_ORDER):
             self.current_step = idx + 1
+            self._current_box_info = (width_class, pick_idx, place_idx)
             
             self._log('INFO', f'[사이클 {self.current_step}/6] {width_class} 그립{pick_idx+1} → 적재{place_idx+1}')
             
-            # 비상정지 체크
+            # 비상정지/충돌 체크
             if not self._check_ready_or_log():
+                # 충돌 발생 시 복구 시도
+                if self.collision_recovery and not self.collision_recovery.is_recovering:
+                    self._log('WARNING', '[2차 적재] 충돌 감지 - 복구 시도')
+                    if self._attempt_recovery():
+                        self._log('INFO', '[2차 적재] 복구 성공 - 현재 사이클 재시도')
+                        # 현재 사이클 재시도 (idx 유지)
+                        continue
+                    else:
+                        self._log('ERROR', '[2차 적재] 복구 실패 - 작업 중단')
+                        self.is_running = False
+                        return False
+                else:
+                    self.is_running = False
+                    return False
+            
+            # 1. 분류 구역에서 집기
+            self._current_action = 'picking'
+            if not self._pick_from_sorting(width_class, pick_idx):
+                if self._attempt_recovery():
+                    continue  # 복구 후 재시도
                 self.is_running = False
                 return False
             
-            # 1. 분류 구역에서 집기
-            if not self._pick_from_sorting(width_class, pick_idx):
-                self.is_running = False
-                return False
+            self._is_gripping = True
             
             # 2. HOME 경유
             self.robot.movel(home, vel=STACKING_V_MOVE, acc=STACKING_A_MOVE)
             
             # 3. 적재 구역에 배치
+            self._current_action = 'placing'
             if not self._place_to_stacking(width_class, place_idx):
+                if self._attempt_recovery():
+                    continue  # 복구 후 재시도
                 self.is_running = False
                 return False
+            
+            self._is_gripping = False
+            self._current_action = 'idle'
             
             # 4. HOME 복귀
             self.robot.movel(home, vel=STACKING_V_MOVE, acc=STACKING_A_MOVE)
@@ -99,7 +136,43 @@ class StackingTask(BaseTask):
         self._log('INFO', '=' * 50)
         
         self.is_running = False
+        self._current_action = 'idle'
         return True
+    
+    def _attempt_recovery(self) -> bool:
+        """충돌 복구 시도"""
+        if not self.collision_recovery:
+            self._log('WARNING', '[2차 적재] CollisionRecovery 없음 - 복구 불가')
+            return False
+        
+        try:
+            self._log('INFO', '[2차 적재] 충돌 복구 시작...')
+            
+            # 작업 상태 저장
+            work_state = {
+                'phase': 'stacking',
+                'step': self.current_step,
+                'action': self._current_action,
+                'box_info': self._current_box_info,
+                'gripping': self._is_gripping
+            }
+            self.collision_recovery.save_work_state(work_state)
+            
+            # 자동 복구 실행
+            success = self.collision_recovery.auto_recover(max_attempts=3)
+            
+            if success:
+                self._log('INFO', '[2차 적재] 충돌 복구 성공')
+                # 그립 상태 동기화
+                self._is_gripping = False  # 복구 후에는 그리퍼 열림 상태
+                return True
+            else:
+                self._log('ERROR', '[2차 적재] 충돌 복구 실패')
+                return False
+                
+        except Exception as e:
+            self._log('ERROR', f'[2차 적재] 복구 예외: {e}')
+            return False
     
     def _pick_from_sorting(self, width_class: str, pick_index: int) -> bool:
         """분류 구역에서 박스 집기"""

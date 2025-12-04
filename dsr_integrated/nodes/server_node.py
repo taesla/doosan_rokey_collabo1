@@ -541,22 +541,33 @@ class WebServerNode(Node):
     # 2차 적재 (StackingTask)
     # =========================================
     def run_stacking_task(self) -> bool:
-        """2차 적재(테트리스) 실행"""
+        """2차 적재(테트리스) 실행 - 충돌 복구 지원"""
         try:
             from ..tasks.stacking import StackingTask
             from ..core.robot_controller import RobotController
+            from ..safety.collision_recovery import CollisionRecovery
             
             # 로봇 컨트롤러 생성
             robot = RobotController(self, self.callback_group)
             
-            # StackingTask 생성 및 실행
+            # CollisionRecovery 생성 (2차 적재용)
+            collision_recovery = CollisionRecovery(
+                node=self,
+                state_monitor=self.state_monitor,
+                callback_group=self.callback_group,
+                robot_controller=robot
+            )
+            
+            # StackingTask 생성 및 실행 (CollisionRecovery 연동)
             stacking = StackingTask(
                 node=self,
                 robot=robot,
-                state_monitor=self.state_monitor
+                state_monitor=self.state_monitor,
+                collision_recovery=collision_recovery,
+                callback_group=self.callback_group
             )
             
-            self.get_logger().info("📦 2차 적재 시작")
+            self.get_logger().info("📦 2차 적재 시작 (충돌 복구 지원)")
             result = stacking.execute()
             
             if result:
