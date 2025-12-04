@@ -257,53 +257,60 @@ class CollisionRecovery:
     def _ensure_standby(self) -> bool:
         """
         movel 전 STANDBY 상태 보장
-        SAFE_STOP/SAFE_OFF 상태면 빠른 복구 수행
+        SAFE_STOP/SAFE_OFF/RECOVERY 상태면 빠른 복구 수행
         
         Returns:
             STANDBY 상태 여부
         """
-        state = self.state_monitor.get_robot_state()
-        
-        if self.state_monitor.is_standby(state):
-            return True
-        
-        self.node.get_logger().warn(f'[Recovery] movel 전 비정상 상태: {state_name(state)} → 빠른 복구')
-        
-        try:
-            # SAFE_STOP 리셋
-            if self.state_monitor.is_safe_stop(state):
-                self._call_control(CTRL_RESET_SAFE_STOP)
-                time.sleep(0.3)
-            
-            # RECOVERY 진입
-            self._call_safety(2, 0)
-            time.sleep(0.2)
-            
-            # RECOVERY 완료
-            self._call_safety(2, 2)
-            time.sleep(0.3)
-            
-            # RECOVERY 해제
-            self._call_control(CTRL_RESET_RECOVERY)
-            time.sleep(0.3)
-            
-            # 서보 ON
+        # 최대 3회 시도
+        for attempt in range(3):
             state = self.state_monitor.get_robot_state()
-            if not self.state_monitor.is_standby(state):
-                self._call_control(CTRL_SERVO_ON)
-                time.sleep(0.5)
             
-            state = self.state_monitor.get_robot_state()
             if self.state_monitor.is_standby(state):
-                self.node.get_logger().info('[Recovery] ✅ 빠른 복구 성공')
                 return True
-            else:
-                self.node.get_logger().warn(f'[Recovery] ⚠️ 빠른 복구 실패: {state_name(state)}')
-                return False
+            
+            self.node.get_logger().warn(f'[Recovery] movel 전 비정상 상태: {state_name(state)} → 복구 시도 {attempt+1}/3')
+            
+            try:
+                # 1. SAFE_STOP 리셋
+                if self.state_monitor.is_safe_stop(state):
+                    self._call_control(CTRL_RESET_SAFE_STOP)
+                    time.sleep(0.5)
+                    state = self.state_monitor.get_robot_state()
                 
-        except Exception as e:
-            self.node.get_logger().error(f'[Recovery] ensure_standby 예외: {e}')
-            return False
+                # 2. RECOVERY 상태(9)거나 SAFE_OFF면 복구 시퀀스
+                if state == 9 or self.state_monitor.is_safe_off(state):
+                    # RECOVERY 진입
+                    self._call_safety(2, 0)
+                    time.sleep(0.3)
+                    
+                    # RECOVERY 완료
+                    self._call_safety(2, 2)
+                    time.sleep(0.3)
+                    
+                    # RECOVERY 해제
+                    self._call_control(CTRL_RESET_RECOVERY)
+                    time.sleep(0.5)
+                
+                # 3. 서보 ON (STANDBY가 아닐 때만)
+                state = self.state_monitor.get_robot_state()
+                if not self.state_monitor.is_standby(state):
+                    self._call_control(CTRL_SERVO_ON)
+                    time.sleep(1.0)
+                
+                # 4. 결과 확인
+                state = self.state_monitor.get_robot_state()
+                if self.state_monitor.is_standby(state):
+                    self.node.get_logger().info('[Recovery] ✅ STANDBY 전환 성공 (녹색불)')
+                    return True
+                
+            except Exception as e:
+                self.node.get_logger().error(f'[Recovery] ensure_standby 예외: {e}')
+            
+            time.sleep(0.5)
+        
+        self.node.get_logger().error('[Recovery] ❌ STANDBY 전환 실패 - 수동 개입 필요')
+        return False
     
     def _place_and_go_home(self) -> bool:
         """

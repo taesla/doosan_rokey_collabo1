@@ -240,16 +240,21 @@ def sort_status_callback(msg):
             total = logistics_status.get('total_count', 0)
             one_take_status['total_sorted'] = total
             
+            # 디버그 로그
+            if total > 0:
+                print(f"[원테이크 체크] total={total}, sorting_complete={one_take_status.get('sorting_complete')}")
+            
             # 6개 완료 시 2차 적재 자동 시작 트리거
             if total >= 6 and not one_take_status.get('sorting_complete'):
                 one_take_status['sorting_complete'] = True
                 one_take_status['phase'] = 'STACKING'
                 add_log('INFO', '✅ 1차 분류 완료 (6개) → 2차 적재 자동 시작')
+                print(f"[원테이크] ✅ 6개 완료! start_stacking=True 설정")
                 
                 # 2차 적재 시작 이벤트 발생 (server_node에서 처리)
                 one_take_status['start_stacking'] = True
-    except:
-        pass
+    except Exception as e:
+        print(f"[sort_status_callback] 예외: {e}")
 
 
 def conveyor_status_callback(msg):
