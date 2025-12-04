@@ -519,15 +519,20 @@ class CollisionRecovery:
                     self.node.get_logger().info('[Recovery] 서비스 안정화 대기 (2초)...')
                     time.sleep(2.0)
                     
-                    # ===== 그립 상태에 따른 분기 =====
-                    if was_gripping:
-                        # 그립 상태: 물체 반납 후 홈으로
-                        self._notify_progress('물체 반납 및 홈 이동 중...', 75)
-                        home_success = self._place_and_go_home()
-                    else:
-                        # 비그립 상태: 홈 직행
-                        self._notify_progress('홈 위치로 이동 중...', 85)
-                        home_success = self._move_to_home()
+                    # ===== 그립 상태와 무관하게 홈 직행 =====
+                    # [주석처리] 이전 복구 시나리오:
+                    # - 그립 상태: 물체 반납 후 홈으로 (_place_and_go_home)
+                    # - 비그립 상태: 홈 직행 (_move_to_home)
+                    # if was_gripping:
+                    #     self._notify_progress('물체 반납 및 홈 이동 중...', 75)
+                    #     home_success = self._place_and_go_home()
+                    # else:
+                    #     self._notify_progress('홈 위치로 이동 중...', 85)
+                    #     home_success = self._move_to_home()
+                    
+                    # 그립/비그립 상태 무관 → 모두 홈 직행
+                    self._notify_progress('홈 위치로 이동 중...', 85)
+                    home_success = self._move_to_home()
                     
                     if home_success:
                         self._notify_progress('복구 완료', 100)

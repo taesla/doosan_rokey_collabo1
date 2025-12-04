@@ -96,6 +96,15 @@ class DlarSortNode(Node):
         self.pub_status = self.create_publisher(String, '/dlar/status', 10)
         self.pub_running = self.create_publisher(Bool, '/dlar/is_running', 10)
         self.pub_recovery = self.create_publisher(String, '/dlar/recovery_status', 10)
+        self.pub_recovery_state = self.create_publisher(String, '/dlar/recovery_state', 10)
+        
+        # ★ 시스템 상태 구독 (watcher_node에서 발행)
+        self.sub_system_status = self.create_subscription(
+            String, '/dlar/system_status',
+            self._on_system_status,
+            10,
+            callback_group=self.callback_group
+        )
         
         # 타이머
         self.status_timer = self.create_timer(0.5, self._publish_status)
@@ -195,6 +204,47 @@ class DlarSortNode(Node):
         running_msg = Bool()
         running_msg.data = self.state.state.is_running
         self.pub_running.publish(running_msg)
+        
+        # 복구용 상태 발행 (state_manager의 current_action 사용)
+        recovery_data = {
+            'last_action': self.state.state.current_action,  # state_manager에서 가져옴
+            'action_timestamp': time.time(),
+            'z_touch': self.state.state.z_touch,
+            'gripping': self.state.state.gripping,  # gripping 상태 추가
+            'target_place_position': self.state.state.target_place_position,
+            'object_width_class': self.state.state.last_width_class,
+            'object_width_mm': getattr(self, '_last_width_mm', None),
+            'cycle_count': self.state.state.cycle_count,  # cycle_count 추가
+        }
+        recovery_msg = String()
+        recovery_msg.data = json.dumps(recovery_data)
+        self.pub_recovery_state.publish(recovery_msg)
+    
+    def _set_current_action(self, action: str):
+        """현재 작업 단계 설정 (복구용)"""
+        self._current_action = action
+        self.get_logger().debug(f'[ACTION] {action}')
+    
+    def _on_system_status(self, msg: String):
+        """시스템 상태 수신 (watcher_node에서 발행)"""
+        status = msg.data
+        self.get_logger().info(f'[SYSTEM] 시스템 상태 수신: {status}')
+        
+        # 복구 시 그리퍼 열기 요청
+        if status == "RECOVERY:OPEN_GRIPPER":
+            self.get_logger().warn('🖐️ [RECOVERY] 그리퍼 열기 요청 수신')
+            try:
+                self.robot.grip_open()
+                self.get_logger().info('✅ [RECOVERY] 그리퍼 열기 완료')
+            except Exception as e:
+                self.get_logger().error(f'❌ [RECOVERY] 그리퍼 열기 실패: {e}')
+        
+        # 복구 완료 상태
+        elif status.startswith("RECOVERY_DONE"):
+            self.get_logger().info(f'✅ [RECOVERY] 복구 완료: {status}')
+            # 복구 후 idle 상태로 설정
+            self._set_current_action('idle')
+            self.state.set_current_action('idle')
     
     def _check_dsr_connection(self):
         """DSR 연결 상태 확인"""

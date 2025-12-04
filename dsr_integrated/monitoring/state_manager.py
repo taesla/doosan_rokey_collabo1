@@ -66,6 +66,11 @@ class SortState:
     cycle_count: int = 0
     last_width_class: Optional[str] = None
     
+    # 복구용 상태 정보
+    current_action: str = 'idle'  # 현재 작업 단계 (approaching_pick, picking, picked, etc.)
+    gripping: bool = False  # 그리퍼가 물체를 잡고 있는지
+    target_place_position: list = field(default_factory=list)  # 목표 Place 위치
+    
     # 컨베이어 연동 상태
     conveyor_mode: bool = False
     conveyor_detected: bool = False
@@ -213,6 +218,36 @@ class StateManager:
         """접촉 높이 설정"""
         self.state.z_touch = z
     
+    def set_current_action(self, action: str):
+        """현재 작업 단계 설정 (복구용)
+        
+        Args:
+            action: 작업 단계
+                - 'idle': 대기 중
+                - 'approaching_pick': Pick 위치로 이동 중
+                - 'picking': 물체 집는 중
+                - 'picked': 물체 집음 완료
+                - 'approaching_place': Place 위치로 이동 중
+                - 'placing': 물체 놓는 중
+                - 'placed': 물체 놓음 완료
+                - 'returning_home': Home으로 복귀 중
+        """
+        self.state.current_action = action
+        
+        # 그리퍼 상태 자동 업데이트
+        if action in ('picked', 'approaching_place', 'placing'):
+            self.state.gripping = True
+        elif action in ('placed', 'returning_home', 'idle'):
+            self.state.gripping = False
+    
+    def set_gripping(self, gripping: bool):
+        """그리퍼 상태 설정"""
+        self.state.gripping = gripping
+    
+    def set_target_place_position(self, position: list):
+        """목표 Place 위치 설정"""
+        self.state.target_place_position = position
+    
     def complete_cycle(self, width_class: str):
         """사이클 완료 처리"""
         self.state.cycle_count += 1
@@ -265,5 +300,10 @@ class StateManager:
             'conveyor_mode': self.state.conveyor_mode,
             'conveyor_detected': self.state.conveyor_detected,
             'waiting_for_object': self.state.waiting_for_object,
+            # 복구용 상태 정보
+            'current_action': self.state.current_action,
+            'gripping': self.state.gripping,
+            'target_place_position': self.state.target_place_position,
+            'z_touch': self.state.z_touch,
             **self.stats.to_dict()
         }

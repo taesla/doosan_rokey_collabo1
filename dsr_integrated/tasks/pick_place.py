@@ -116,6 +116,22 @@ class PickPlaceTask(BaseTask):
         """DLAR 포맷 로그 출력"""
         self.node.get_logger().info(f'[DLAR] {msg}')
     
+    def _set_action(self, action: str):
+        """
+        현재 작업 단계 설정 (복구 시스템용)
+        - sort_node가 이 상태를 읽어 Firebase에 저장
+        
+        Args:
+            action: 작업 단계 ('approaching_pick', 'picking', 'picked', 
+                             'approaching_place', 'placing', 'placed', 'returning_home')
+        """
+        try:
+            if hasattr(self.state, 'set_current_action'):
+                self.state.set_current_action(action)
+            self._log(f'[ACTION] {action}')
+        except Exception as e:
+            self._log(f'[ACTION] {action} (set failed: {e})')
+    
     def _wait_for_estop_release(self) -> bool:
         """비상정지 해제될 때까지 대기"""
         if self.state.is_emergency_stopped():
@@ -181,6 +197,9 @@ class PickPlaceTask(BaseTask):
         
         hx, hy, hz, hrx, hry, hrz = home
         px, py, pz, prx, pry, prz = pick
+        
+        # ★ 작업 단계 설정 (복구용)
+        self._set_action('approaching_pick')
         
         # 1) HOME_Z 높이에서 픽업 XY로 이동
         self._log("STEP: HOME_Z 높이에서 컨베이어 픽업 위치로 이동")
@@ -354,6 +373,9 @@ class PickPlaceTask(BaseTask):
             vel=VELOCITY_MOVE, acc=ACCEL_MOVE
         )
         
+        # ★ 작업 단계 설정 (복구용)
+        self._set_action('picking')
+        
         self.robot.grip_open()
         
         target_pick_z = z_touch - GRIP_OFFSET - PICK_EXTRA_DOWN
@@ -369,6 +391,9 @@ class PickPlaceTask(BaseTask):
         
         self.robot.grip_close()
         time.sleep(0.5)
+        
+        # ★ 작업 단계 설정 (복구용) - Pick 완료
+        self._set_action('picked')
         
         # HOME_Z 높이까지 복귀
         self._movel_with_estop_check(
@@ -581,6 +606,9 @@ class PickPlaceTask(BaseTask):
         # ==============================
         # 4) 접근 (공통)
         # ==============================
+        # ★ 작업 단계 설정 (복구용) - Place 접근 중
+        self._set_action('approaching_place')
+        
         self._movel_with_estop_check(
             [target_x, target_y, approach_z, rx, ry, rz],
             vel=VELOCITY_MOVE, acc=ACCEL_MOVE
@@ -592,6 +620,8 @@ class PickPlaceTask(BaseTask):
         # ==============================
         # 5) 실제 내려가서 놓는 동작
         # ==============================
+        # ★ 작업 단계 설정 (복구용) - Place 중
+        self._set_action('placing')
         if width_class == "SMALL":
             # SMALL: 위치 기반으로 살짝 누르고
             target_z_small = target_z - 1.0
@@ -668,10 +698,16 @@ class PickPlaceTask(BaseTask):
         self.robot.grip_open()
         time.sleep(0.3)
         
+        # ★ 작업 단계 설정 (복구용) - Place 완료 후 복귀 중
+        self._set_action('placed')
+        
         self._movel_with_estop_check(
             [target_x, target_y, approach_z, rx, ry, rz_current],
             vel=VELOCITY_MOVE, acc=ACCEL_MOVE
         )
+        
+        # ★ 작업 단계 설정 (복구용) - Home으로 복귀 중
+        self._set_action('returning_home')
         
         # ★ 컨베이어 재시작 콜백
         if self.on_place_complete:
