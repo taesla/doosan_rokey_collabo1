@@ -506,9 +506,27 @@ class CollisionRecovery:
                     # 복구 실패로 처리 - sort_node에서 드라이버 재시작 처리
                     break
                 
-                # 7. 서보 ON (상태가 STANDBY가 아닐 때)
+                # 7. 서보 ON 및 STANDBY 전환 강화 (노란불 → 녹색불)
                 if not self.state_monitor.is_standby(state):
                     self.servo_on()
+                    time.sleep(0.5)
+                    
+                    # STANDBY 전환 재시도 (최대 3회)
+                    for servo_retry in range(3):
+                        state = self.state_monitor.get_robot_state()
+                        if self.state_monitor.is_standby(state):
+                            break
+                        
+                        self.node.get_logger().warn(f'[Recovery] STANDBY 전환 재시도 {servo_retry+1}/3 (현재: {state_name(state)})')
+                        
+                        # RECOVERY 상태(9)면 다시 해제 시도
+                        if state == 9:  # RECOVERY
+                            self._call_control(CTRL_RESET_RECOVERY)
+                            time.sleep(0.3)
+                        
+                        # 서보 ON 재시도
+                        self._call_control(CTRL_SERVO_ON)
+                        time.sleep(0.5)
                 
                 # 결과 확인
                 state = self.state_monitor.get_robot_state()

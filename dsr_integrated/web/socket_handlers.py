@@ -318,7 +318,7 @@ def register_socket_handlers(socketio, get_ros_node):
     def handle_one_take_start():
         """
         원테이크 시나리오 시작
-        1. 1차 분류: 컨베이어 → 분류 구역 (9개)
+        1. 1차 분류: 컨베이어 → 분류 구역 (6개: S2+M2+L2)
         2. 2차 적재: 분류 구역 → 적재 구역 (6개 테트리스)
         """
         ros_node = get_ros_node()
@@ -343,7 +343,7 @@ def register_socket_handlers(socketio, get_ros_node):
             
             if success:
                 add_log('INFO', '🚀 원테이크 시나리오 시작!')
-                add_log('INFO', '  [1단계] 1차 분류 시작 (목표: 9개)')
+                add_log('INFO', '  [1단계] 1차 분류 시작 (목표: 6개 = S2+M2+L2)')
                 add_log('INFO', '  → 컨베이어 자동 모드 활성화')
                 add_log('INFO', '  → 물체 감지 대기 중...')
                 socketio.emit('one_take_result', {

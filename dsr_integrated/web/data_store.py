@@ -152,11 +152,11 @@ ui_state = {
 one_take_status = {
     'running': False,
     'phase': 'IDLE',           # IDLE, SORTING, STACKING, COMPLETE, ERROR
-    'sorting_complete': False,  # 1차 분류 9개 완료
+    'sorting_complete': False,  # 1차 분류 6개 완료 (S2+M2+L2)
     'stacking_complete': False, # 2차 적재 6개 완료
     'stacking_step': 0,        # 현재 적재 단계 (0-6)
     'total_sorted': 0,         # 분류된 박스 개수
-    'target_count': 9,         # 목표 분류 개수
+    'target_count': 6,         # 목표 분류 개수 (S2+M2+L2)
     'start_stacking': False,   # 2차 적재 시작 트리거 (내부용)
 }
 

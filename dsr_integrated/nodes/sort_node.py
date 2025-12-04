@@ -40,8 +40,8 @@ from ..tasks.pick_place import PickPlaceTask
 from ..monitoring import RobotStateMonitor
 from ..safety import CollisionRecovery
 
-# 1차 적재 사이클 수 (robot_pick_node 기준)
-MAX_CYCLES = 9
+# 1차 적재 사이클 수 (S2 + M2 + L2 = 6개)
+MAX_CYCLES = 6
 
 
 class DlarSortNode(Node):
