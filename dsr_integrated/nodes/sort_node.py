@@ -731,7 +731,7 @@ class DlarSortNode(Node):
             try:
                 # ===== PICK =====
                 self.get_logger().info("[PHASE] PICK 단계 시작 (컨베이어)")
-                pick_ok = self.pick_place.pick_and_measure()
+                pick_ok, width_class = self.pick_place.do_pick()
                 
                 # 비상정지/충돌 체크
                 if self.state.is_emergency_stopped():
@@ -739,7 +739,7 @@ class DlarSortNode(Node):
                     cycle_count -= 1  # 사이클 재시도 (복구 후 다시 시도)
                     continue
                 
-                if not pick_ok:
+                if not pick_ok or width_class is None:
                     self.get_logger().info("[SKIP] PICK 실패 감지 → 사이클 재시도")
                     # 비상정지 상태가 아닐 때만 홈 이동
                     if not self.state.is_emergency_stopped():
@@ -755,7 +755,7 @@ class DlarSortNode(Node):
                     cycle_count -= 1
                     continue
                 
-                width_class = self.robot.get_width_class()
+                # do_pick()에서 이미 width_class 반환됨
                 self.get_logger().info(f'[CYCLE] PLACE ({width_class})')
                 self.pick_place.place_to_box(width_class)
                 
@@ -854,15 +854,14 @@ class DlarSortNode(Node):
         try:
             # PICK
             self.get_logger().info('[SINGLE] PICK 단계')
-            pick_ok = self.pick_place.pick_and_measure()
+            pick_ok, width_class = self.pick_place.do_pick()
             
-            if not pick_ok:
+            if not pick_ok or width_class is None:
                 self.get_logger().info('[SINGLE] PICK 실패 - 사이클 종료')
                 self._movel_with_estop_check(home, vel=self.VELOCITY_MOVE, acc=self.ACCEL_MOVE)
                 return
             
-            # PLACE
-            width_class = self.robot.get_width_class()
+            # PLACE - do_pick()에서 width_class 이미 반환됨
             self.get_logger().info(f'[SINGLE] PLACE ({width_class})')
             self.pick_place.place_to_box(width_class)
             
