@@ -117,7 +117,7 @@
             <!-- Progress Bar -->
             <div class="mb-4">
                 <div class="flex justify-between items-center mb-2">
-                    <span class="text-sm font-semibold text-slate-600">Slide <span id="currentSlideNum">1</span> / 11</span>
+                    <span class="text-sm font-semibold text-slate-600">Slide <span id="currentSlideNum">1</span> / 12</span>
                     <span id="slideTitle" class="text-sm font-bold text-blue-600">Title Slide</span>
                 </div>
                 <div class="progress-bar">
@@ -195,6 +195,10 @@
                     <div class="w-8 h-8 bg-slate-400 text-white rounded-lg flex items-center justify-center mx-auto mb-2 font-bold text-sm">11</div>
                     <p class="text-xs font-semibold text-slate-700 truncate">Execution</p>
                 </div>
+                <div onclick="goToSlide(12)" class="slide-thumbnail p-3 bg-slate-50 rounded-xl border-2 border-transparent text-center" id="thumb-12">
+                    <div class="w-8 h-8 bg-slate-400 text-white rounded-lg flex items-center justify-center mx-auto mb-2 font-bold text-sm">12</div>
+                    <p class="text-xs font-semibold text-slate-700 truncate">Database</p>
+                </div>
             </div>
         </div>
 
@@ -255,7 +259,8 @@
             { file: 'slide08_driver_node.html', title: 'Driver Node' },
             { file: 'slide09_education.html', title: 'Education Concepts' },
             { file: 'slide10_code.html', title: 'Code Implementation' },
-            { file: 'slide11_execution.html', title: 'Execution Guide' }
+            { file: 'slide11_execution.html', title: 'Execution Guide' },
+            { file: 'slide12_database.html', title: 'Database Selection' }
         ];
 
         let currentSlide = 1;
@@ -312,6 +317,7 @@
             if (e.key >= '1' && e.key <= '9') goToSlide(parseInt(e.key));
             if (e.key === '0') goToSlide(10);
             if (e.key === '-') goToSlide(11);
+            if (e.key === '=') goToSlide(12);
         });
     </script>
 </body>

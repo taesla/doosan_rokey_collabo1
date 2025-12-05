@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Slide 12: Database Selection</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap">
+    <style>
+        body { font-family: 'Noto Sans KR', sans-serif; margin: 0; padding: 0; }
+        .slide {
+            width: 1280px;
+            height: 720px;
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            padding: 40px 50px;
+            box-sizing: border-box;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            border-bottom: 3px solid #0f172a;
+            padding-bottom: 15px;
+        }
+        .header h1 { font-size: 32px; font-weight: 900; color: #0f172a; }
+        .header .badge { background: #f97316; color: white; padding: 5px 15px; border-radius: 20px; font-weight: 700; }
+
+        .content-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            height: calc(100% - 80px);
+        }
+
+        /* Left: Comparison Table */
+        .compare-section {
+            background: white;
+            border-radius: 16px;
+            padding: 25px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .section-title {
+            font-size: 18px;
+            font-weight: 800;
+            color: #334155;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .compare-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        .compare-table th {
+            background: #f1f5f9;
+            padding: 10px 8px;
+            text-align: left;
+            font-weight: 700;
+            border-bottom: 2px solid #cbd5e1;
+        }
+        .compare-table td {
+            padding: 10px 8px;
+            border-bottom: 1px solid #e2e8f0;
+            vertical-align: top;
+        }
+        .compare-table tr:hover { background: #f8fafc; }
+        .winner { background: #dcfce7 !important; }
+        .winner td:first-child { font-weight: 700; color: #16a34a; }
+        .check { color: #22c55e; }
+        .cross { color: #ef4444; }
+        .partial { color: #f59e0b; }
+
+        /* Right: Selection Reasons */
+        .reasons-section {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .reason-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            flex: 1;
+        }
+        .reason-card.highlight {
+            background: linear-gradient(135deg, #fff7ed, #ffedd5);
+            border: 2px solid #f97316;
+        }
+        .reason-title {
+            font-size: 16px;
+            font-weight: 800;
+            color: #0f172a;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .reason-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .reason-list li {
+            padding: 6px 0;
+            font-size: 13px;
+            color: #475569;
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+        }
+        .reason-list li i {
+            margin-top: 3px;
+            flex-shrink: 0;
+        }
+
+        /* Data Flow */
+        .flow-box {
+            background: #1e293b;
+            border-radius: 12px;
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+        }
+        .flow-node {
+            background: rgba(255,255,255,0.1);
+            padding: 10px 15px;
+            border-radius: 8px;
+            text-align: center;
+            color: white;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .flow-node.firebase {
+            background: #f97316;
+        }
+        .flow-arrow {
+            color: #64748b;
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <h1><i class="fas fa-database mr-3"></i>데이터베이스 선정 (Database Selection)</h1>
+            <span class="badge">Why Firebase?</span>
+        </div>
+
+        <div class="content-grid">
+            <!-- Left: Comparison -->
+            <div class="compare-section">
+                <div class="section-title">
+                    <i class="fas fa-balance-scale text-blue-600"></i>
+                    DB 솔루션 비교
+                </div>
+                <table class="compare-table">
+                    <thead>
+                        <tr>
+                            <th>Database</th>
+                            <th>실시간</th>
+                            <th>설치</th>
+                            <th>비용</th>
+                            <th>ROS2 통합</th>
+                            <th>호스팅</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr class="winner">
+                            <td><i class="fas fa-fire text-orange-500 mr-1"></i>Firebase RTDB</td>
+                            <td><i class="fas fa-check check"></i> WebSocket</td>
+                            <td><i class="fas fa-check check"></i> 즉시</td>
+                            <td><i class="fas fa-check check"></i> 무료*</td>
+                            <td><i class="fas fa-check check"></i> Python SDK</td>
+                            <td><i class="fas fa-check check"></i> 자체</td>
+                        </tr>
+                        <tr>
+                            <td><i class="fas fa-database text-blue-500 mr-1"></i>PostgreSQL</td>
+                            <td><i class="fas fa-times cross"></i> 폴링</td>
+                            <td><i class="fas fa-times cross"></i> 설치 필요</td>
+                            <td><i class="fas fa-check check"></i> 무료</td>
+                            <td><i class="fas fa-minus partial"></i> psycopg2</td>
+                            <td><i class="fas fa-times cross"></i> 별도</td>
+                        </tr>
+                        <tr>
+                            <td><i class="fas fa-leaf text-green-600 mr-1"></i>MongoDB</td>
+                            <td><i class="fas fa-minus partial"></i> Change Stream</td>
+                            <td><i class="fas fa-times cross"></i> 설치 필요</td>
+                            <td><i class="fas fa-minus partial"></i> Atlas 무료</td>
+                            <td><i class="fas fa-check check"></i> pymongo</td>
+                            <td><i class="fas fa-minus partial"></i> Atlas</td>
+                        </tr>
+                        <tr>
+                            <td><i class="fas fa-bolt text-yellow-500 mr-1"></i>Redis</td>
+                            <td><i class="fas fa-check check"></i> Pub/Sub</td>
+                            <td><i class="fas fa-times cross"></i> 설치 필요</td>
+                            <td><i class="fas fa-check check"></i> 무료</td>
+                            <td><i class="fas fa-check check"></i> redis-py</td>
+                            <td><i class="fas fa-times cross"></i> 별도</td>
+                        </tr>
+                        <tr>
+                            <td><i class="fab fa-aws text-orange-400 mr-1"></i>AWS DynamoDB</td>
+                            <td><i class="fas fa-minus partial"></i> Streams</td>
+                            <td><i class="fas fa-check check"></i> 즉시</td>
+                            <td><i class="fas fa-times cross"></i> 유료</td>
+                            <td><i class="fas fa-check check"></i> boto3</td>
+                            <td><i class="fas fa-check check"></i> 자체</td>
+                        </tr>
+                        <tr>
+                            <td><i class="fas fa-file text-gray-500 mr-1"></i>SQLite</td>
+                            <td><i class="fas fa-times cross"></i> 없음</td>
+                            <td><i class="fas fa-check check"></i> 내장</td>
+                            <td><i class="fas fa-check check"></i> 무료</td>
+                            <td><i class="fas fa-check check"></i> sqlite3</td>
+                            <td><i class="fas fa-times cross"></i> 로컬</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <p style="font-size: 11px; color: #94a3b8; margin-top: 10px;">
+                    * Firebase Spark Plan: 1GB 저장, 10GB/월 전송 무료
+                </p>
+            </div>
+
+            <!-- Right: Reasons -->
+            <div class="reasons-section">
+                <div class="reason-card highlight">
+                    <div class="reason-title">
+                        <i class="fas fa-trophy text-orange-500"></i>
+                        Firebase 선정 이유
+                    </div>
+                    <ul class="reason-list">
+                        <li><i class="fas fa-check-circle text-green-500"></i><span><strong>실시간 동기화</strong>: WebSocket 기반으로 데이터 변경 즉시 UI 반영</span></li>
+                        <li><i class="fas fa-check-circle text-green-500"></i><span><strong>Zero Configuration</strong>: 서버 설치/관리 불필요, 즉시 사용</span></li>
+                        <li><i class="fas fa-check-circle text-green-500"></i><span><strong>상태 복구</strong>: 웹 종료 후 재시작 시 마지막 상태 자동 복원</span></li>
+                        <li><i class="fas fa-check-circle text-green-500"></i><span><strong>무료 티어</strong>: 소규모 프로젝트에 충분한 무료 할당량</span></li>
+                        <li><i class="fas fa-check-circle text-green-500"></i><span><strong>Python SDK</strong>: firebase_admin으로 ROS2 노드에서 직접 연동</span></li>
+                    </ul>
+                </div>
+
+                <div class="reason-card">
+                    <div class="reason-title">
+                        <i class="fas fa-sitemap text-blue-600"></i>
+                        데이터 구조 (RTDB)
+                    </div>
+                    <div style="background: #1e293b; border-radius: 8px; padding: 12px; font-family: monospace; font-size: 12px; color: #a5f3fc;">
+                        <div style="color: #fbbf24;">/ (root)</div>
+                        <div style="margin-left: 15px;">├─ <span style="color: #4ade80;">robot_status</span>/</div>
+                        <div style="margin-left: 30px; color: #94a3b8;">├─ state: "STANDBY"</div>
+                        <div style="margin-left: 30px; color: #94a3b8;">├─ position: [x, y, z, ...]</div>
+                        <div style="margin-left: 30px; color: #94a3b8;">└─ timestamp: 1733...</div>
+                        <div style="margin-left: 15px;">├─ <span style="color: #4ade80;">statistics</span>/</div>
+                        <div style="margin-left: 30px; color: #94a3b8;">├─ total_sorted: 150</div>
+                        <div style="margin-left: 30px; color: #94a3b8;">└─ small_count: 45</div>
+                        <div style="margin-left: 15px;">└─ <span style="color: #4ade80;">commands</span>/</div>
+                        <div style="margin-left: 30px; color: #94a3b8;">└─ action: "start_sorting"</div>
+                    </div>
+                </div>
+
+                <div class="flow-box">
+                    <div class="flow-node">ROS2 Node<br><small>firebase_admin</small></div>
+                    <i class="fas fa-arrows-alt-h flow-arrow"></i>
+                    <div class="flow-node firebase"><i class="fas fa-fire"></i><br>Firebase RTDB</div>
+                    <i class="fas fa-arrows-alt-h flow-arrow"></i>
+                    <div class="flow-node">Web Browser<br><small>firebase.js</small></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
