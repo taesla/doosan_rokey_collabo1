@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>arduino_conveyor_bridge</name>
+  <version>0.0.0</version>
+  <description>Arduino conveyor → ROS2 bridge</description>
+  <maintainer email="bae1hon@gmail.com">ilhoon</maintainer>
+  <license>TODO: License declaration</license>
+
+  <!-- 빌드툴: ament_python (파이썬 패키지라서) -->
+  <buildtool_depend>ament_python</buildtool_depend>
+
+  <!-- 실행에 필요한 의존성 -->
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <!-- pyserial APT 패키지까지 명시하고 싶으면 아래 줄 유지 -->
+  <exec_depend>python3-serial</exec_depend>
+
+  <!-- 테스트 의존성 -->
+  <test_depend>ament_copyright</test_depend>
+  <test_depend>ament_flake8</test_depend>
+  <test_depend>ament_pep257</test_depend>
+  <test_depend>python3-pytest</test_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>
+

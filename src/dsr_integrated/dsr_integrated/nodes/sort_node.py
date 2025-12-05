@@ -615,20 +615,23 @@ class DlarSortNode(Node):
         if request.data:
             self.conveyor.send_resume()
             
+            # ★ 먼저 waiting_for_object를 True로 설정 (HOME 이동 전에!)
+            # 이렇게 해야 HOME 이동 중 물체 감지 시에도 사이클 시작 가능
+            self.state.set_waiting_for_object(True)
+            
             if self.robot.is_ready and not self.state.state.is_running:
                 def move_home_and_wait():
                     self.get_logger().info('[CONVEYOR] HOME 위치로 이동')
                     self.robot.grip_close()
                     self.robot.movel(HOME_POSITION, vel=self.VELOCITY_MOVE, acc=self.ACCEL_MOVE)
-                    self.state.set_waiting_for_object(True)
                     self.get_logger().info('[CONVEYOR] HOME 도착 - 물체 감지 대기 중')
                     
-                    if self.conveyor.is_detected and self.state.state.conveyor_mode:
+                    # ★ HOME 이동 완료 후 이미 감지된 물체가 있으면 즉시 시작
+                    if self.conveyor.is_detected and self.state.state.conveyor_mode and not self.state.state.is_running:
+                        self.get_logger().info('[CONVEYOR] ★ 이미 감지된 물체 있음 - 즉시 사이클 시작!')
                         self._start_single_cycle()
                 
                 threading.Thread(target=move_home_and_wait, daemon=True).start()
-            else:
-                self.state.set_waiting_for_object(True)
             
             response.message = '컨베이어 자동 모드 활성화'
             self.get_logger().info('[CONVEYOR] 자동 모드 ON')
@@ -660,7 +663,18 @@ class DlarSortNode(Node):
             self.get_logger().info('[CONVEYOR] ✅ 자동 분류 시작!')
             self._start_single_cycle()
         else:
-            self.get_logger().warn('[CONVEYOR] ❌ 자동 사이클 시작 조건 미충족!')
+            # ★ 어떤 조건이 False인지 상세 로깅
+            reasons = []
+            if not self.state.state.conveyor_mode:
+                reasons.append('conveyor_mode=False')
+            if not self.state.state.waiting_for_object:
+                reasons.append('waiting_for_object=False')
+            if self.state.state.is_running:
+                reasons.append('is_running=True (작업 중)')
+            if not self.state.state.conveyor_detected:
+                reasons.append('conveyor_detected=False')
+            
+            self.get_logger().warn(f'[CONVEYOR] ❌ 자동 사이클 시작 불가! 원인: {", ".join(reasons)}')
     
     def _on_place_complete(self):
         """Place 완료 콜백 - 그리퍼 열자마자 컨베이어 재시작"""

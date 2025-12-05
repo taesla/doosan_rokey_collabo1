@@ -81,4 +81,3 @@ log/
 # Firebase credentials (security)
 *-firebase-adminsdk-*.json
 firebase-credentials.json
-serviceAccountKey.json
