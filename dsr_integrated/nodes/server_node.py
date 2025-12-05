@@ -304,9 +304,11 @@ class WebServerNode(Node):
         try:
             data = json.loads(msg.data)
             event = data.get('event', '')
+            self.get_logger().info(f'📥 [SERVER] Recovery status received: event={event}')
             
             # 통합 이벤트로 전달 (recovery_status)
             if event == 'detected':
+                self.get_logger().info('📤 [SERVER] Emitting recovery_status: started')
                 socketio.emit('recovery_status', {
                     'status': 'started',
                     'progress': 0,
@@ -314,6 +316,7 @@ class WebServerNode(Node):
                 })
                 socketio.emit('collision_detected', data)
             elif event == 'progress':
+                self.get_logger().info(f'📤 [SERVER] Emitting recovery_status: progress {data.get("percent", 0)}%')
                 socketio.emit('recovery_status', {
                     'status': 'progress',
                     'progress': data.get('percent', 0),
@@ -325,6 +328,7 @@ class WebServerNode(Node):
                 })
             elif event == 'complete':
                 success = data.get('success', False)
+                self.get_logger().info(f'📤 [SERVER] Emitting recovery_status: {"completed" if success else "failed"}')
                 socketio.emit('recovery_status', {
                     'status': 'completed' if success else 'failed',
                     'progress': 100 if success else 0,

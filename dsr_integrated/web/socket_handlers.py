@@ -466,3 +466,47 @@ def register_socket_handlers(socketio, get_ros_node):
         socketio.emit('sort_status', sort_status)
         socketio.emit('one_take_status', one_take_status)
         socketio.emit('reset_all_result', {'success': True, 'message': '전체 초기화 완료'})
+
+    @socketio.on('test_recovery_popup')
+    def handle_test_recovery_popup():
+        """복구 팝업 테스트용 - 서버에서 recovery_status 이벤트 발행"""
+        import time
+        import threading
+        
+        print('🧪 TEST RECOVERY POPUP - 서버 이벤트 테스트')
+        
+        def simulate_recovery():
+            # 시작
+            socketio.emit('recovery_status', {
+                'status': 'started',
+                'progress': 0,
+                'step': '복구 모드 시작...'
+            })
+            time.sleep(0.5)
+            
+            # 진행 단계
+            steps = [
+                (25, '서보 OFF'),
+                (50, 'Z축 상승 중...'),
+                (70, '홈 위치로 이동...'),
+                (90, '서보 ON'),
+            ]
+            
+            for percent, step in steps:
+                socketio.emit('recovery_status', {
+                    'status': 'progress',
+                    'progress': percent,
+                    'step': step
+                })
+                time.sleep(0.5)
+            
+            # 완료
+            socketio.emit('recovery_status', {
+                'status': 'completed',
+                'progress': 100,
+                'step': '복구 완료!'
+            })
+        
+        # 별도 스레드에서 실행
+        thread = threading.Thread(target=simulate_recovery, daemon=True)
+        thread.start()

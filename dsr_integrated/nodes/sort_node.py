@@ -524,6 +524,7 @@ class DlarSortNode(Node):
             'success': success,
         }
         msg.data = json.dumps(data)
+        self.get_logger().info(f'📡 [RECOVERY STATUS] event={event}, step={step}, percent={percent}%')
         self.pub_recovery.publish(msg)
     
     def _on_collision_detected(self):
@@ -646,14 +647,20 @@ class DlarSortNode(Node):
         self.state.set_conveyor_detected(True)
         
         self.get_logger().info(
-            f'[CONVEYOR] 상태: mode={self.state.state.conveyor_mode}, '
+            f'[CONVEYOR] 📦 감지! 상태: mode={self.state.state.conveyor_mode}, '
             f'waiting={self.state.state.waiting_for_object}, '
-            f'running={self.state.state.is_running}'
+            f'running={self.state.state.is_running}, '
+            f'detected={self.state.state.conveyor_detected}'
         )
         
-        if self.state.can_start_auto_cycle():
+        can_start = self.state.can_start_auto_cycle()
+        self.get_logger().info(f'[CONVEYOR] can_start_auto_cycle = {can_start}')
+        
+        if can_start:
             self.get_logger().info('[CONVEYOR] ✅ 자동 분류 시작!')
             self._start_single_cycle()
+        else:
+            self.get_logger().warn('[CONVEYOR] ❌ 자동 사이클 시작 조건 미충족!')
     
     def _on_place_complete(self):
         """Place 완료 콜백 - 그리퍼 열자마자 컨베이어 재시작"""

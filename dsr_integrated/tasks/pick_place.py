@@ -96,6 +96,11 @@ class PickPlaceTask(BaseTask):
         self.state.set_phase(phase)
         self._log(f"=== PHASE 변경: {phase} ===")
     
+    def _set_action(self, action: str):
+        """현재 작업 단계 설정 (복구용 상태 추적)"""
+        self.state.set_current_action(action)
+        self._log(f"[ACTION] {action}")
+    
     def _wait_for_estop_release(self) -> bool:
         """비상정지 해제될 때까지 대기"""
         if self.state.is_emergency_stopped():
