@@ -305,16 +305,34 @@ class WebServerNode(Node):
             data = json.loads(msg.data)
             event = data.get('event', '')
             
+            # 통합 이벤트로 전달 (recovery_status)
             if event == 'detected':
+                socketio.emit('recovery_status', {
+                    'status': 'started',
+                    'progress': 0,
+                    'step': '충돌 감지됨'
+                })
                 socketio.emit('collision_detected', data)
             elif event == 'progress':
+                socketio.emit('recovery_status', {
+                    'status': 'progress',
+                    'progress': data.get('percent', 0),
+                    'step': data.get('step', '복구 진행 중...')
+                })
                 socketio.emit('recovery_progress', {
                     'step': data.get('step', ''),
                     'percent': data.get('percent', 0)
                 })
             elif event == 'complete':
+                success = data.get('success', False)
+                socketio.emit('recovery_status', {
+                    'status': 'completed' if success else 'failed',
+                    'progress': 100 if success else 0,
+                    'step': '복구 완료!' if success else '복구 실패',
+                    'message': data.get('step', '')
+                })
                 socketio.emit('recovery_complete', {
-                    'success': data.get('success', False),
+                    'success': success,
                     'message': data.get('step', '')
                 })
         except Exception as e:

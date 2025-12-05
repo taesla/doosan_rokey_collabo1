@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 """
-충돌 복구 모듈 (단순화 버전)
+충돌 복구 모듈
 
-복구 시퀀스 (원본 recovery.py 기반):
-    1. SAFE_STOP 리셋 (control=2)
-    2. RECOVERY ENTER (mode=2, event=0)
-    3. Jog Z+ (바닥 충돌 시)
-    4. RECOVERY COMPLETE (mode=2, event=2)
-    5. RECOVERY 해제 (control=7)
-    6. Servo ON (control=3)
+복구 시퀀스 (새로운 방식):
+    1. SAFE_STOP 리셋 → RECOVERY 진입 → Jog Z+ (필요시) → RECOVERY 완료/해제 → 서보 ON
+    2. 그리퍼 닫힌 채 유지 (물체 있을 수도 있으니)
+    3. 컨베이어 초기 위치로 이동 (안전 높이 경유)
+    4. Place 동작: 하강 → 그리퍼 열기 → 상승
+    5. 그리퍼 닫기
+    6. 홈으로 이동
+    7. 복구 완료 (사이클 카운팅 없이 이어서)
     
 드라이버 재시작 (서비스 응답 없을 때):
     1. 현재 런치 프로세스 종료
@@ -252,6 +253,99 @@ class CollisionRecovery:
             return success
         except Exception as e:
             self.node.get_logger().error(f'[Recovery] 홈 이동 예외: {e}')
+            return False
+    
+    def _recovery_place_and_home(self) -> bool:
+        """
+        새로운 복구 시퀀스:
+        1. 그리퍼 닫힌 채 유지 (물체 있을 수도 있으니)
+        2. 안전 높이로 상승
+        3. 컨베이어 초기 위치 상공으로 이동
+        4. Place 동작: 하강 → 그리퍼 열기 → 상승
+        5. 그리퍼 닫기
+        6. 홈으로 이동
+        
+        Returns:
+            성공 여부
+        """
+        if self.robot is None:
+            self.node.get_logger().warn('[Recovery] robot_controller가 없어서 복구 불가')
+            return False
+        
+        try:
+            self.node.get_logger().info('[Recovery] 📦 복구 시퀀스 시작 (그리퍼 닫힌 채 유지)')
+            
+            # 컨베이어 초기 위치 (나중에 수정 가능)
+            # CONVEY_START_POINT = [117.84, -231.69, 124.66, ...]
+            convey_pos = CONVEY_START_POINT.copy()
+            safe_z = HOME_POSITION[2]  # 안전 높이 = HOME Z (203.18mm)
+            place_z = convey_pos[2]     # Place 높이 = 컨베이어 Z (124.66mm)
+            
+            # 1. 먼저 현재 위치에서 안전 높이로 상승
+            self.node.get_logger().info('[Recovery] 1. 안전 높이로 상승...')
+            if not self._ensure_standby():
+                return False
+            
+            current_pos = self.robot.get_current_posx()
+            if current_pos:
+                safe_pos = list(current_pos)
+                safe_pos[2] = safe_z
+                self.robot.movel(safe_pos, vel=VELOCITY_MOVE, acc=ACCEL_MOVE)
+                time.sleep(0.3)
+            
+            # 2. 컨베이어 초기 위치 상공으로 이동 (안전 높이 유지)
+            self.node.get_logger().info('[Recovery] 2. 컨베이어 위치 상공으로 이동...')
+            if not self._ensure_standby():
+                return False
+            
+            approach_pos = convey_pos.copy()
+            approach_pos[2] = safe_z  # 안전 높이
+            self.robot.movel(approach_pos, vel=VELOCITY_MOVE, acc=ACCEL_MOVE)
+            time.sleep(0.3)
+            
+            # 3. 컨베이어 위치로 하강 (Place 동작)
+            self.node.get_logger().info('[Recovery] 3. 컨베이어 위치로 하강...')
+            if not self._ensure_standby():
+                return False
+            
+            self.robot.movel(convey_pos, vel=VELOCITY_MOVE/2, acc=ACCEL_MOVE/2)
+            time.sleep(0.3)
+            
+            # 4. 그리퍼 열기 (물체 내려놓기)
+            self.node.get_logger().info('[Recovery] 4. 그리퍼 열기 (물체 내려놓기)')
+            self.robot.grip_open()
+            time.sleep(0.5)
+            
+            # 5. 안전 높이로 상승
+            self.node.get_logger().info('[Recovery] 5. 안전 높이로 상승...')
+            if not self._ensure_standby():
+                return False
+            
+            self.robot.movel(approach_pos, vel=VELOCITY_MOVE, acc=ACCEL_MOVE)
+            time.sleep(0.3)
+            
+            # 6. 그리퍼 닫기 (빈 손 상태로 복귀)
+            self.node.get_logger().info('[Recovery] 6. 그리퍼 닫기')
+            self.robot.grip_close()
+            time.sleep(0.3)
+            
+            # 7. 홈으로 이동
+            self.node.get_logger().info('[Recovery] 7. 홈 위치로 이동...')
+            if not self._ensure_standby():
+                return False
+            
+            success = self.robot.movel(HOME_POSITION, vel=VELOCITY_MOVE, acc=ACCEL_MOVE)
+            
+            if success:
+                self.node.get_logger().info('[Recovery] ✅ 복구 시퀀스 완료 - 홈 도착')
+            else:
+                self.node.get_logger().warn('[Recovery] ⚠️ 홈 이동 실패')
+            
+            return success
+            
+        except Exception as e:
+            self.node.get_logger().error(f'[Recovery] 복구 시퀀스 예외: {e}')
+            return False
             return False
     
     def _ensure_standby(self) -> bool:
@@ -544,27 +638,17 @@ class CollisionRecovery:
                     self.node.get_logger().info('[Recovery] 서비스 안정화 대기 (2초)...')
                     time.sleep(2.0)
                     
-                    # ===== 그립 상태와 무관하게 홈 직행 =====
-                    # [주석처리] 이전 복구 시나리오:
-                    # - 그립 상태: 물체 반납 후 홈으로 (_place_and_go_home)
-                    # - 비그립 상태: 홈 직행 (_move_to_home)
-                    # if was_gripping:
-                    #     self._notify_progress('물체 반납 및 홈 이동 중...', 75)
-                    #     home_success = self._place_and_go_home()
-                    # else:
-                    #     self._notify_progress('홈 위치로 이동 중...', 85)
-                    #     home_success = self._move_to_home()
+                    # ===== 새로운 복구 시퀀스 =====
+                    # 그리퍼 닫힌 채 → 컨베이어 초기 위치 → Place → 홈
+                    self._notify_progress('컨베이어 위치로 이동 중...', 70)
+                    recovery_success = self._recovery_place_and_home()
                     
-                    # 그립/비그립 상태 무관 → 모두 홈 직행
-                    self._notify_progress('홈 위치로 이동 중...', 85)
-                    home_success = self._move_to_home()
-                    
-                    if home_success:
+                    if recovery_success:
                         self._notify_progress('복구 완료', 100)
-                        self.node.get_logger().info('✅ [Recovery] 홈 이동 완료 - 복구 100% 완료!')
+                        self.node.get_logger().info('✅ [Recovery] 복구 시퀀스 완료!')
                     else:
-                        self._notify_progress('복구 완료 (홈 이동 실패)', 95)
-                        self.node.get_logger().warn('⚠️ [Recovery] 홈 이동 실패 - 수동 홈 이동 필요')
+                        self._notify_progress('복구 완료 (일부 실패)', 95)
+                        self.node.get_logger().warn('⚠️ [Recovery] 복구 일부 실패 - 수동 확인 필요')
                     
                     success = True
                     break

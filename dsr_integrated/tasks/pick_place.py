@@ -56,7 +56,7 @@ class PickPlaceTask(BaseTask):
             state_monitor: 실시간 상태 모니터
             recovery_checker: 외부에서 호출되는 복구 가능 여부 체크 함수
         """
-        super().__init__(node, robot, state, firebase, config)
+        super().__init__(node, state_monitor, recovery_checker)
         
         self.state_monitor = state_monitor
         self.recovery_checker = recovery_checker
@@ -435,3 +435,27 @@ class PickPlaceTask(BaseTask):
             "stack_count": self.stack_count.copy(),
             "placed_boxes": self.placed_boxes.copy(),
         }
+    
+    def execute(self, width_class: Optional[str] = None) -> bool:
+        """
+        BaseTask 추상 메서드 구현: Pick + Place 전체 사이클 실행
+        
+        Args:
+            width_class: 분류 클래스 (None이면 do_pick()에서 자동 분류)
+            
+        Returns:
+            성공 여부
+        """
+        # Pick
+        pick_ok, detected_class = self.do_pick()
+        if not pick_ok:
+            return False
+        
+        # width_class가 지정되지 않았으면 자동 분류 결과 사용
+        target_class = width_class or detected_class
+        if not target_class:
+            self._log("[ERROR] 분류 결과 없음")
+            return False
+        
+        # Place
+        return self.place_to_box(target_class)
