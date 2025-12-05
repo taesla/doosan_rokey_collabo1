@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Slide 11: Execution</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap">
+    <style>
+        body { font-family: 'Noto Sans KR', sans-serif; }
+        .slide { width: 1280px; height: 720px; background: white; padding: 40px; box-sizing: border-box; display: flex; flex-direction: column; }
+        .header { border-bottom: 3px solid #0f172a; padding-bottom: 15px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: end; }
+        .header h1 { font-size: 36px; font-weight: 900; color: #0f172a; }
+        
+        .content { display: flex; gap: 40px; height: 100%; }
+        .cmd-panel { flex: 1; background: #1e293b; border-radius: 12px; padding: 25px; color: #e2e8f0; font-family: monospace; display: flex; flex-direction: column; gap: 20px; box-shadow: 0 10px 20px rgba(0,0,0,0.2); }
+        .cmd-group h3 { color: #f472b6; font-weight: bold; margin-bottom: 10px; font-family: sans-serif; }
+        .cmd { background: #0f172a; padding: 10px; border-radius: 6px; border-left: 4px solid #3b82f6; font-size: 14px; }
+        
+        .final-panel { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
+        .final-icon { font-size: 80px; color: #3b82f6; margin-bottom: 20px; }
+        .final-text { font-size: 24px; font-weight: 700; color: #334155; margin-bottom: 40px; }
+        .qr-placeholder { width: 120px; height: 120px; background: #e2e8f0; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #64748b; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <h1><i class="fas fa-terminal mr-3"></i>시스템 실행 방법 및 결론</h1>
+            <span class="text-xl text-gray-500">Run & Wrap-up</span>
+        </div>
+        
+        <div class="content">
+            <div class="cmd-panel">
+                <div class="cmd-group">
+                    <h3><i class="fas fa-rocket mr-2"></i>Option 1: 전체 시스템 실행 (Launch)</h3>
+                    <div class="cmd">
+                        $ cd ~/cobot1_ws<br>
+                        $ source install/setup.bash<br>
+                        $ ros2 launch dsr_integrated full_system.launch.py
+                    </div>
+                </div>
+                
+                <div class="cmd-group">
+                    <h3><i class="fas fa-puzzle-piece mr-2"></i>Option 2: 개별 노드 실행</h3>
+                    <div class="cmd">
+                        $ ros2 run arduino_conveyor_bridge serial_to_topic<br>
+                        $ ros2 run dsr_integrated sort_node<br>
+                        $ ros2 run dsr_integrated web_server_node
+                    </div>
+                </div>
+
+                <div class="cmd-group">
+                    <h3><i class="fas fa-globe mr-2"></i>Web Access</h3>
+                    <div class="cmd border-l-green-500">
+                        Browser URL: http://&lt;Robot_PC_IP&gt;:5000
+                    </div>
+                </div>
+            </div>
+
+            <div class="final-panel">
+                <div class="final-icon"><i class="fas fa-check-circle"></i></div>
+                <div class="final-text">
+                    ROS2와 Web 기술의 완벽한 통합으로<br>
+                    누구나 쉽게 제어 가능한<br>
+                    스마트 로봇 시스템을 구축했습니다.
+                </div>
+                <div class="text-gray-500 text-sm mt-4">Documented by Copilot</div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

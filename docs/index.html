@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Doosan Robot ROS2 Integration - Documentation</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap">
+    <style>
+        body { 
+            font-family: 'Noto Sans KR', sans-serif; 
+            background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 50%, #1e293b 100%);
+            min-height: 100vh;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        }
+        .slide-nav-btn {
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .slide-nav-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+        }
+        .slide-nav-btn.active {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            color: white;
+            transform: scale(1.05);
+        }
+        .slide-container {
+            width: 100%;
+            max-width: 1280px;
+            aspect-ratio: 16/9;
+            margin: 0 auto;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            background: white;
+        }
+        .slide-container iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+        .nav-arrow {
+            transition: all 0.2s ease;
+        }
+        .nav-arrow:hover {
+            transform: scale(1.1);
+        }
+        .nav-arrow:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+        .progress-bar {
+            height: 4px;
+            background: #e2e8f0;
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+            transition: width 0.3s ease;
+        }
+        .slide-thumbnail {
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .slide-thumbnail:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
+        }
+        .slide-thumbnail.active {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+    <!-- Header -->
+    <header class="max-w-7xl mx-auto mb-6">
+        <div class="glass-card p-6">
+            <div class="flex flex-col lg:flex-row items-center justify-between gap-4">
+                <div class="flex items-center gap-4">
+                    <div class="w-16 h-16 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl flex items-center justify-center shadow-lg">
+                        <i class="fas fa-robot text-3xl text-white"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-2xl md:text-3xl font-black text-slate-800">ROS2 Web Integration Architecture</h1>
+                        <p class="text-slate-500">Doosan Robot M0609 • Flask + SocketIO • Real-time Control</p>
+                    </div>
+                </div>
+                <div class="flex gap-3">
+                    <a href="https://github.com/taesla/doosan_rokey_collabo1" target="_blank" 
+                       class="px-5 py-2.5 bg-slate-800 text-white rounded-full font-semibold hover:bg-slate-700 transition flex items-center gap-2">
+                        <i class="fab fa-github"></i> GitHub
+                    </a>
+                    <a href="https://taesla.github.io/collision_recovery/" target="_blank"
+                       class="px-5 py-2.5 bg-red-600 text-white rounded-full font-semibold hover:bg-red-500 transition flex items-center gap-2">
+                        <i class="fas fa-shield-alt"></i> Collision Recovery
+                    </a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto">
+        <!-- Slide Viewer Section -->
+        <div class="glass-card p-6 mb-6">
+            <!-- Progress Bar -->
+            <div class="mb-4">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-sm font-semibold text-slate-600">Slide <span id="currentSlideNum">1</span> / 11</span>
+                    <span id="slideTitle" class="text-sm font-bold text-blue-600">Title Slide</span>
+                </div>
+                <div class="progress-bar">
+                    <div id="progressFill" class="progress-fill" style="width: 9.09%"></div>
+                </div>
+            </div>
+
+            <!-- Slide Viewer with Navigation -->
+            <div class="flex items-center gap-4">
+                <!-- Previous Button -->
+                <button onclick="prevSlide()" id="prevBtn" class="nav-arrow w-12 h-12 bg-slate-100 hover:bg-slate-200 rounded-full flex items-center justify-center text-slate-600" disabled>
+                    <i class="fas fa-chevron-left text-xl"></i>
+                </button>
+
+                <!-- Slide Frame -->
+                <div class="slide-container flex-1">
+                    <iframe id="slideFrame" src="slide01_title.html"></iframe>
+                </div>
+
+                <!-- Next Button -->
+                <button onclick="nextSlide()" id="nextBtn" class="nav-arrow w-12 h-12 bg-slate-100 hover:bg-slate-200 rounded-full flex items-center justify-center text-slate-600">
+                    <i class="fas fa-chevron-right text-xl"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Slide Thumbnails / Navigation -->
+        <div class="glass-card p-6 mb-6">
+            <h3 class="text-lg font-bold text-slate-700 mb-4 flex items-center gap-2">
+                <i class="fas fa-th-large text-blue-600"></i>
+                All Slides
+            </h3>
+            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                <div onclick="goToSlide(1)" class="slide-thumbnail active p-3 bg-slate-50 rounded-xl border-2 border-transparent text-center" id="thumb-1">
+                    <div class="w-8 h-8 bg-blue-600 text-white rounded-lg flex items-center justify-center mx-auto mb-2 font-bold text-sm">1</div>
+                    <p class="text-xs font-semibold text-slate-700 truncate">Title</p>
+                </div>
+                <div onclick="goToSlide(2)" class="slide-thumbnail p-3 bg-slate-50 rounded-xl border-2 border-transparent text-center" id="thumb-2">
+                    <div class="w-8 h-8 bg-slate-400 text-white rounded-lg flex items-center justify-center mx-auto mb-2 font-bold text-sm">2</div>
+                    <p class="text-xs font-semibold text-slate-700 truncate">Packages</p>
+                </div>
+                <div onclick="goToSlide(3)" class="slide-thumbnail p-3 bg-slate-50 rounded-xl border-2 border-transparent text-center" id="thumb-3">
+                    <div class="w-8 h-8 bg-slate-400 text-white rounded-lg flex items-center justify-center mx-auto mb-2 font-bold text-sm">3</div>
+                    <p class="text-xs font-semibold text-slate-700 truncate">Methodology</p>
+                </div>
+                <div onclick="goToSlide(4)" class="slide-thumbnail p-3 bg-slate-50 rounded-xl border-2 border-transparent text-center" id="thumb-4">
+                    <div class="w-8 h-8 bg-slate-400 text-white rounded-lg flex items-center justify-center mx-auto mb-2 font-bold text-sm">4</div>
+                    <p class="text-xs font-semibold text-slate-700 truncate">Layers</p>
+                </div>
+                <div onclick="goToSlide(5)" class="slide-thumbnail p-3 bg-slate-50 rounded-xl border-2 border-transparent text-center" id="thumb-5">
+                    <div class="w-8 h-8 bg-slate-400 text-white rounded-lg flex items-center justify-center mx-auto mb-2 font-bold text-sm">5</div>
+                    <p class="text-xs font-semibold text-slate-700 truncate">Data Flow</p>
+                </div>
+                <div onclick="goToSlide(6)" class="slide-thumbnail p-3 bg-slate-50 rounded-xl border-2 border-transparent text-center" id="thumb-6">
+                    <div class="w-8 h-8 bg-slate-400 text-white rounded-lg flex items-center justify-center mx-auto mb-2 font-bold text-sm">6</div>
+                    <p class="text-xs font-semibold text-slate-700 truncate">App Nodes</p>
+                </div>
+                <div onclick="goToSlide(7)" class="slide-thumbnail p-3 bg-slate-50 rounded-xl border-2 border-transparent text-center" id="thumb-7">
+                    <div class="w-8 h-8 bg-slate-400 text-white rounded-lg flex items-center justify-center mx-auto mb-2 font-bold text-sm">7</div>
+                    <p class="text-xs font-semibold text-slate-700 truncate">Interface</p>
+                </div>
+                <div onclick="goToSlide(8)" class="slide-thumbnail p-3 bg-slate-50 rounded-xl border-2 border-transparent text-center" id="thumb-8">
+                    <div class="w-8 h-8 bg-slate-400 text-white rounded-lg flex items-center justify-center mx-auto mb-2 font-bold text-sm">8</div>
+                    <p class="text-xs font-semibold text-slate-700 truncate">Driver</p>
+                </div>
+                <div onclick="goToSlide(9)" class="slide-thumbnail p-3 bg-slate-50 rounded-xl border-2 border-transparent text-center" id="thumb-9">
+                    <div class="w-8 h-8 bg-slate-400 text-white rounded-lg flex items-center justify-center mx-auto mb-2 font-bold text-sm">9</div>
+                    <p class="text-xs font-semibold text-slate-700 truncate">Education</p>
+                </div>
+                <div onclick="goToSlide(10)" class="slide-thumbnail p-3 bg-slate-50 rounded-xl border-2 border-transparent text-center" id="thumb-10">
+                    <div class="w-8 h-8 bg-slate-400 text-white rounded-lg flex items-center justify-center mx-auto mb-2 font-bold text-sm">10</div>
+                    <p class="text-xs font-semibold text-slate-700 truncate">Code</p>
+                </div>
+                <div onclick="goToSlide(11)" class="slide-thumbnail p-3 bg-slate-50 rounded-xl border-2 border-transparent text-center" id="thumb-11">
+                    <div class="w-8 h-8 bg-slate-400 text-white rounded-lg flex items-center justify-center mx-auto mb-2 font-bold text-sm">11</div>
+                    <p class="text-xs font-semibold text-slate-700 truncate">Execution</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Info Cards -->
+        <div class="grid md:grid-cols-3 gap-6 mb-6">
+            <div class="glass-card p-6">
+                <div class="flex items-center gap-4 mb-4">
+                    <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                        <i class="fas fa-layer-group text-2xl text-blue-600"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-slate-800">4-Layer Architecture</h3>
+                </div>
+                <p class="text-slate-600 text-sm">Application → Interface → Driver → Hardware 계층 구조로 체계적인 로봇 제어</p>
+            </div>
+            <div class="glass-card p-6">
+                <div class="flex items-center gap-4 mb-4">
+                    <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
+                        <i class="fas fa-globe text-2xl text-green-600"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-slate-800">Web Integration</h3>
+                </div>
+                <p class="text-slate-600 text-sm">Flask + SocketIO를 활용한 실시간 웹 기반 로봇 모니터링 및 제어</p>
+            </div>
+            <div class="glass-card p-6">
+                <div class="flex items-center gap-4 mb-4">
+                    <div class="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
+                        <i class="fas fa-graduation-cap text-2xl text-purple-600"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-slate-800">Education Ready</h3>
+                </div>
+                <p class="text-slate-600 text-sm">ROS2 입문자를 위한 단계별 학습 구조와 실습 예제 제공</p>
+            </div>
+        </div>
+
+        <!-- Keyboard Shortcuts -->
+        <div class="glass-card p-4 text-center text-sm text-slate-500">
+            <i class="fas fa-keyboard mr-2"></i>
+            Keyboard: <kbd class="px-2 py-1 bg-slate-100 rounded text-slate-700 font-mono">←</kbd> Previous
+            <kbd class="px-2 py-1 bg-slate-100 rounded text-slate-700 font-mono ml-4">→</kbd> Next
+            <kbd class="px-2 py-1 bg-slate-100 rounded text-slate-700 font-mono ml-4">1-9, 0, -</kbd> Go to slide
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="max-w-7xl mx-auto mt-8 text-center text-slate-400 text-sm pb-8">
+        <p>© 2025 Doosan Robot ROS2 Integration • Built with ROS2 Humble & Doosan Robotics SDK</p>
+    </footer>
+
+    <script>
+        const slides = [
+            { file: 'slide01_title.html', title: 'Title Slide' },
+            { file: 'slide02_packages.html', title: 'Package Overview' },
+            { file: 'slide03_methodology.html', title: 'Web Integration Methodology' },
+            { file: 'slide04_layers.html', title: '4-Layer Architecture' },
+            { file: 'slide05_dataflow.html', title: 'Data Flow Diagram' },
+            { file: 'slide06_app_nodes.html', title: 'Application Nodes' },
+            { file: 'slide07_interface_nodes.html', title: 'Interface Nodes' },
+            { file: 'slide08_driver_node.html', title: 'Driver Node' },
+            { file: 'slide09_education.html', title: 'Education Concepts' },
+            { file: 'slide10_code.html', title: 'Code Implementation' },
+            { file: 'slide11_execution.html', title: 'Execution Guide' }
+        ];
+
+        let currentSlide = 1;
+
+        function updateSlide() {
+            const slide = slides[currentSlide - 1];
+            document.getElementById('slideFrame').src = slide.file;
+            document.getElementById('currentSlideNum').textContent = currentSlide;
+            document.getElementById('slideTitle').textContent = slide.title;
+            document.getElementById('progressFill').style.width = ((currentSlide / slides.length) * 100) + '%';
+            
+            // Update navigation buttons
+            document.getElementById('prevBtn').disabled = currentSlide === 1;
+            document.getElementById('nextBtn').disabled = currentSlide === slides.length;
+            
+            // Update thumbnails
+            document.querySelectorAll('.slide-thumbnail').forEach((thumb, index) => {
+                thumb.classList.remove('active');
+                const numDiv = thumb.querySelector('div');
+                if (index === currentSlide - 1) {
+                    thumb.classList.add('active');
+                    numDiv.classList.remove('bg-slate-400');
+                    numDiv.classList.add('bg-blue-600');
+                } else {
+                    numDiv.classList.remove('bg-blue-600');
+                    numDiv.classList.add('bg-slate-400');
+                }
+            });
+        }
+
+        function nextSlide() {
+            if (currentSlide < slides.length) {
+                currentSlide++;
+                updateSlide();
+            }
+        }
+
+        function prevSlide() {
+            if (currentSlide > 1) {
+                currentSlide--;
+                updateSlide();
+            }
+        }
+
+        function goToSlide(num) {
+            currentSlide = num;
+            updateSlide();
+        }
+
+        // Keyboard navigation
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'ArrowRight') nextSlide();
+            if (e.key === 'ArrowLeft') prevSlide();
+            if (e.key >= '1' && e.key <= '9') goToSlide(parseInt(e.key));
+            if (e.key === '0') goToSlide(10);
+            if (e.key === '-') goToSlide(11);
+        });
+    </script>
+</body>
+</html>

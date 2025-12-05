@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Slide 6: Application Nodes</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap">
+    <style>
+        body { font-family: 'Noto Sans KR', sans-serif; }
+        .slide { width: 1280px; height: 720px; background: white; padding: 40px; box-sizing: border-box; display: flex; flex-direction: column; }
+        .header { border-bottom: 3px solid #0f172a; padding-bottom: 15px; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: end; }
+        .header h1 { font-size: 36px; font-weight: 900; color: #0f172a; }
+        
+        .node-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; height: 100%; }
+        .node-card { border: 1px solid #cbd5e1; border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .nc-header { padding: 15px 20px; font-weight: 700; color: white; display: flex; justify-content: space-between; align-items: center; font-size: 20px; }
+        .nc-content { padding: 20px; background: #f8fafc; flex: 1; overflow-y: auto; font-size: 14px; }
+        
+        .nc-sort { border-color: #3b82f6; } .nc-sort .nc-header { background: #3b82f6; }
+        .nc-rec { border-color: #ef4444; } .nc-rec .nc-header { background: #ef4444; }
+        
+        .section-title { font-weight: 700; color: #475569; margin-top: 10px; margin-bottom: 5px; border-bottom: 1px solid #e2e8f0; padding-bottom: 2px; }
+        .item-list { list-style: none; padding: 0; margin: 0; }
+        .item { display: flex; gap: 8px; margin-bottom: 4px; color: #334155; }
+        .icon { width: 20px; text-align: center; }
+        .topic-name { font-family: monospace; color: #0369a1; background: #e0f2fe; padding: 1px 4px; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <h1><i class="fas fa-brain mr-3"></i>핵심 노드 상세 구조: Application Layer</h1>
+            <span class="text-xl text-gray-500">Core Business Logic</span>
+        </div>
+        <div class="node-grid">
+            <!-- Sort Node -->
+            <div class="node-card nc-sort">
+                <div class="nc-header">
+                    <span><i class="fas fa-sitemap mr-2"></i>dlar_sort_node</span>
+                    <span class="text-sm bg-white/20 px-2 py-1 rounded">Main Controller</span>
+                </div>
+                <div class="nc-content">
+                    <div class="section-title"><i class="fas fa-broadcast-tower mr-2"></i>Publish</div>
+                    <ul class="item-list">
+                        <li class="item"><span class="topic-name">/dlar/status</span> (String): 전체 상태 JSON</li>
+                        <li class="item"><span class="topic-name">/dlar/is_running</span> (Bool): 작업 중 여부</li>
+                    </ul>
+                    
+                    <div class="section-title mt-4"><i class="fas fa-concierge-bell mr-2"></i>Service Server</div>
+                    <ul class="item-list">
+                        <li class="item"><span class="topic-name">/dlar/start_sort</span>: 분류 시작</li>
+                        <li class="item"><span class="topic-name">/dlar/stop_sort</span>: 비상 정지</li>
+                        <li class="item"><span class="topic-name">/dlar/reset_state</span>: 카운터 초기화</li>
+                    </ul>
+
+                    <div class="section-title mt-4"><i class="fas fa-code mr-2"></i>Key Algorithms</div>
+                    <ul class="item-list">
+                        <li class="item"><i class="fas fa-cube text-blue-500 icon"></i>9사이클 적재 로직 (S2+M2+L2)</li>
+                        <li class="item"><i class="fas fa-hand-holding text-blue-500 icon"></i>pick_place.py (Force Control)</li>
+                        <li class="item"><i class="fas fa-memory text-blue-500 icon"></i>State Manager (Firebase Sync)</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Recovery Node -->
+            <div class="node-card nc-rec">
+                <div class="nc-header">
+                    <span><i class="fas fa-medkit mr-2"></i>recovery_node</span>
+                    <span class="text-sm bg-white/20 px-2 py-1 rounded">Error Handler</span>
+                </div>
+                <div class="nc-content">
+                    <div class="section-title"><i class="fas fa-satellite-dish mr-2"></i>Service Client</div>
+                    <ul class="item-list">
+                        <li class="item"><span class="topic-name">/dsr01/system/set_robot_control</span></li>
+                        <li class="item"><span class="topic-name">/dsr01/system/set_safety_mode</span></li>
+                        <li class="item"><span class="topic-name">/dsr01/motion/jog</span></li>
+                    </ul>
+
+                    <div class="section-title mt-4"><i class="fas fa-tools mr-2"></i>Recovery Sequence</div>
+                    <ul class="item-list">
+                        <li class="item">1. <strong>SAFE_STOP Reset</strong> (Control ON)</li>
+                        <li class="item">2. <strong>Enter Recovery</strong> (Manual Mode)</li>
+                        <li class="item">3. <strong>Jog Z-Up</strong> (+100mm 안전 확보)</li>
+                        <li class="item">4. <strong>Resume</strong> (Auto Mode 복귀)</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,7 +1,25 @@
 # DSR Integrated - 물류 분류 로봇 시스템
 
+[![ROS2](https://img.shields.io/badge/ROS2-Humble-blue)](https://docs.ros.org/en/humble/)
+[![Python](https://img.shields.io/badge/Python-3.10+-green)](https://www.python.org/)
+[![License](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
+
+> **📚 [Interactive Documentation](https://taesla.github.io/doosan_rokey_collabo1/)** - 인터랙티브 슬라이드 문서 보기
+
 Doosan M0609 로봇을 사용한 물류 자동 분류 시스템입니다.  
 **Flask + SocketIO** 기반 웹 UI와 **ROS2 Humble**을 통합하여 실시간 로봇 제어 및 모니터링을 제공합니다.
+
+---
+
+## 📖 Documentation
+
+| 문서 | 설명 |
+|------|------|
+| 🎯 [Interactive Slides](https://taesla.github.io/doosan_rokey_collabo1/) | 11장 인터랙티브 아키텍처 슬라이드 |
+| 🔧 [Collision Recovery](https://taesla.github.io/collision_recovery/) | 충돌 복구 시스템 문서 |
+| 📄 [Web Integration Report](docs/WEB_INTEGRATION_REPORT.md) | ROS2-Web 통합 상세 리포트 |
+
+---
 
 ## ✨ 주요 기능
 

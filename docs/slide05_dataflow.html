@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Slide 5: Data Flow</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap">
+    <style>
+        body { font-family: 'Noto Sans KR', sans-serif; }
+        .slide { width: 1280px; height: 720px; background: white; padding: 40px; box-sizing: border-box; display: flex; flex-direction: column; }
+        .header { border-bottom: 3px solid #0f172a; padding-bottom: 15px; margin-bottom: 40px; display: flex; justify-content: space-between; align-items: end; }
+        .header h1 { font-size: 36px; font-weight: 900; color: #0f172a; }
+        
+        .flow-container { display: flex; align-items: center; justify-content: space-between; height: 400px; padding: 0 20px; }
+        
+        .node { width: 180px; height: 180px; border-radius: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); z-index: 10; border: 3px solid; background: white; }
+        .node i { font-size: 50px; margin-bottom: 15px; }
+        .node-title { font-weight: 800; font-size: 18px; margin-bottom: 5px; }
+        .node-desc { font-size: 12px; color: #64748b; text-align: center; padding: 0 10px; }
+        
+        .n-web { border-color: #ec4899; color: #ec4899; }
+        .n-server { border-color: #8b5cf6; color: #8b5cf6; }
+        .n-app { border-color: #3b82f6; color: #3b82f6; }
+        .n-driver { border-color: #10b981; color: #10b981; }
+        .n-hw { border-color: #64748b; color: #64748b; }
+        
+        .connector { flex: 1; height: 4px; background: #e2e8f0; position: relative; margin: 0 10px; }
+        .connector::after { content: ''; position: absolute; right: 0; top: -6px; width: 0; height: 0; border-top: 8px solid transparent; border-bottom: 8px solid transparent; border-left: 12px solid #e2e8f0; }
+        
+        .label-top { position: absolute; top: -30px; width: 100%; text-align: center; font-size: 12px; font-weight: 700; color: #64748b; }
+        .label-bottom { position: absolute; bottom: -30px; width: 100%; text-align: center; font-size: 12px; font-weight: 700; color: #64748b; }
+        
+        .db-connection { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); height: 80px; width: 2px; background: #cbd5e1; border-style: dashed; }
+        .db-node { position: absolute; bottom: -80px; left: 50%; transform: translateX(-50%); width: 100px; height: 60px; background: #fff7ed; border: 2px solid #f97316; border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #c2410c; }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <h1><i class="fas fa-exchange-alt mr-3"></i>End-to-End 데이터 흐름도</h1>
+            <span class="text-xl text-gray-500">Communication Flow</span>
+        </div>
+        
+        <div class="flow-container">
+            <!-- Web -->
+            <div class="node n-web">
+                <i class="fas fa-laptop"></i>
+                <div class="node-title">Web UI</div>
+                <div class="node-desc">User Input<br>Visualization</div>
+            </div>
+            
+            <div class="connector">
+                <div class="label-top">SocketIO</div>
+                <div class="label-bottom">Event</div>
+            </div>
+            
+            <!-- Server -->
+            <div class="node n-server">
+                <i class="fas fa-server"></i>
+                <div class="node-title">Server Node</div>
+                <div class="node-desc">Route/Handle<br>Flask Engine</div>
+                <!-- Firebase DB Link -->
+                <div class="db-connection">
+                    <div class="db-node"><i class="fas fa-database mb-1"></i>Firebase</div>
+                </div>
+            </div>
+            
+            <div class="connector">
+                <div class="label-top">ROS2 Service</div>
+                <div class="label-bottom">Client</div>
+            </div>
+            
+            <!-- App -->
+            <div class="node n-app">
+                <i class="fas fa-brain"></i>
+                <div class="node-title">Sort Node</div>
+                <div class="node-desc">Logic/State<br>Manager</div>
+            </div>
+            
+            <div class="connector">
+                <div class="label-top">ROS2 Service</div>
+                <div class="label-bottom">Cmd</div>
+            </div>
+            
+            <!-- Driver -->
+            <div class="node n-driver">
+                <i class="fas fa-cogs"></i>
+                <div class="node-title">DSR Driver</div>
+                <div class="node-desc">Motion Control<br>Trajectory</div>
+            </div>
+            
+            <div class="connector">
+                <div class="label-top">TCP/IP</div>
+                <div class="label-bottom">DRCF</div>
+            </div>
+            
+            <!-- Hardware -->
+            <div class="node n-hw">
+                <i class="fas fa-robot"></i>
+                <div class="node-title">Robot</div>
+                <div class="node-desc">Actuator<br>Sensors</div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

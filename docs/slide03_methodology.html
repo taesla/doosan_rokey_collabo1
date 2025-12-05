@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Slide 3: Methodology</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap">
+    <style>
+        body { font-family: 'Noto Sans KR', sans-serif; }
+        .slide { width: 1280px; height: 720px; background: white; padding: 40px; box-sizing: border-box; display: flex; flex-direction: column; }
+        .header { border-bottom: 3px solid #0f172a; padding-bottom: 15px; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: end; }
+        .header h1 { font-size: 36px; font-weight: 900; color: #0f172a; }
+        .content { display: flex; gap: 40px; height: 100%; }
+        .diagram-box { flex: 1; background: #f1f5f9; border-radius: 16px; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 20px; border: 1px dashed #cbd5e1; }
+        .table-box { flex: 1.5; display: flex; flex-direction: column; justify-content: center; }
+        
+        .method-card { width: 100%; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 20px; border-left: 6px solid #3b82f6; }
+        .pros-cons { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 10px; }
+        .list-item { font-size: 14px; display: flex; align-items: center; gap: 8px; }
+        
+        /* Architecture SVG */
+        .arch-box { border: 2px solid #334155; border-radius: 10px; padding: 10px; background: white; text-align: center; font-weight: 700; width: 80%; margin: 10px 0; }
+        .arch-arrow { font-size: 24px; color: #64748b; margin: 5px 0; }
+        .highlight { color: #2563eb; }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <h1><i class="fas fa-network-wired mr-3"></i>웹 통합 방법론 분석</h1>
+            <span class="text-xl text-gray-500">Integration Methodology</span>
+        </div>
+        <div class="content">
+            <div class="diagram-box">
+                <div class="font-bold text-gray-500 mb-4">현재 아키텍처 (Current)</div>
+                <div class="arch-box bg-slate-800 text-white relative">
+                    <div class="text-sm text-gray-300 mb-2">Single Process (WebServerNode)</div>
+                    <div class="flex justify-between gap-2">
+                        <div class="bg-blue-600 p-2 rounded flex-1">ROS2 Node<br>(rclpy)</div>
+                        <div class="text-white self-center">↔</div>
+                        <div class="bg-green-600 p-2 rounded flex-1">Flask<br>SocketIO</div>
+                    </div>
+                </div>
+                <div class="arch-arrow">⬇️ HTTP / WebSocket</div>
+                <div class="arch-box bg-white text-gray-800">
+                    Web Browser<br>(HTML/JS)
+                </div>
+            </div>
+
+            <div class="table-box">
+                <h3 class="text-2xl font-bold text-gray-800 mb-4">선택: Flask + SocketIO Embedding</h3>
+                <div class="method-card">
+                    <div class="text-lg font-bold text-blue-700 mb-2">왜 이 방식을 선택했는가?</div>
+                    <div class="pros-cons">
+                        <div>
+                            <div class="font-bold text-green-600 mb-2"><i class="fas fa-thumbs-up"></i> 장점 (Pros)</div>
+                            <div class="list-item"><i class="fas fa-check text-green-500"></i>단일 프로세스로 지연 최소화</div>
+                            <div class="list-item"><i class="fas fa-check text-green-500"></i>별도 브릿지 노드 불필요</div>
+                            <div class="list-item"><i class="fas fa-check text-green-500"></i>Python 친화적 (rclpy 통합)</div>
+                        </div>
+                        <div>
+                            <div class="font-bold text-red-600 mb-2"><i class="fas fa-thumbs-down"></i> 단점 (Cons)</div>
+                            <div class="list-item"><i class="fas fa-times text-red-500"></i>대규모 접속 시 성능 제한</div>
+                            <div class="list-item"><i class="fas fa-times text-red-500"></i>ROS/Web 코드 결합도 높음</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                    <div class="font-bold text-gray-700 mb-2">다른 대안 비교</div>
+                    <table class="w-full text-sm text-left">
+                        <tr class="border-b"><td class="py-1 font-bold">rosbridge_suite</td><td class="text-gray-600">표준이지만 JSON 오버헤드 발생</td></tr>
+                        <tr class="border-b"><td class="py-1 font-bold">FastAPI</td><td class="text-gray-600">비동기 성능 좋으나 ROS2와 결합 복잡</td></tr>
+                        <tr><td class="py-1 font-bold">rclnodejs</td><td class="text-gray-600">JS 네이티브지만 별도 런타임 필요</td></tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

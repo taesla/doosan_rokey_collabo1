@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Slide 10: Code Implementation</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap">
+    <style>
+        body { font-family: 'Noto Sans KR', sans-serif; }
+        .slide { width: 1280px; height: 720px; background: white; padding: 40px; box-sizing: border-box; display: flex; flex-direction: column; }
+        .header { border-bottom: 3px solid #0f172a; padding-bottom: 15px; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: end; }
+        .header h1 { font-size: 36px; font-weight: 900; color: #0f172a; }
+        
+        .code-flow { display: flex; gap: 20px; height: 100%; align-items: stretch; }
+        .step-col { flex: 1; display: flex; flex-direction: column; gap: 10px; }
+        
+        .step-header { background: #334155; color: white; padding: 10px; border-radius: 8px; text-align: center; font-weight: 700; }
+        .code-box { background: #1e293b; color: #e2e8f0; padding: 15px; border-radius: 8px; font-family: monospace; font-size: 11px; flex: 1; overflow: hidden; border: 1px solid #475569; position: relative; }
+        .step-num { position: absolute; top: 10px; right: 10px; background: rgba(255,255,255,0.2); width: 24px; height: 24px; border-radius: 50%; text-align: center; line-height: 24px; font-weight: bold; }
+        
+        .arrow { align-self: center; font-size: 24px; color: #94a3b8; }
+        .keyword { color: #f472b6; } .func { color: #60a5fa; } .str { color: #a3e635; }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <h1><i class="fas fa-code mr-3"></i>웹 버튼 클릭부터 로봇 동작까지 (Code Flow)</h1>
+            <span class="text-xl text-gray-500">Implementation Details</span>
+        </div>
+        
+        <div class="code-flow">
+            <!-- Step 1 -->
+            <div class="step-col">
+                <div class="step-header bg-pink-600">1. Browser (JS)</div>
+                <div class="code-box">
+                    <div class="step-num">1</div>
+                    <span class="keyword">function</span> onClick() {<br>
+                    &nbsp;&nbsp;socket.<span class="func">emit</span>(<span class="str">'sort_start'</span>);<br>
+                    }<br><br>
+                    socket.<span class="func">on</span>(<span class="str">'sort_result'</span>, (res) => {<br>
+                    &nbsp;&nbsp;console.log(res);<br>
+                    });
+                </div>
+            </div>
+            
+            <i class="fas fa-chevron-right arrow"></i>
+
+            <!-- Step 2 -->
+            <div class="step-col">
+                <div class="step-header bg-purple-600">2. Flask (Python)</div>
+                <div class="code-box">
+                    <div class="step-num">2</div>
+                    @socketio.on(<span class="str">'sort_start'</span>)<br>
+                    <span class="keyword">def</span> handle_start():<br>
+                    &nbsp;&nbsp;node = get_ros_node()<br>
+                    &nbsp;&nbsp;<span class="comment"># ROS2 Service Call</span><br>
+                    &nbsp;&nbsp;node.cli.call_async(req)<br>
+                    &nbsp;&nbsp;socketio.emit(...)
+                </div>
+            </div>
+
+            <i class="fas fa-chevron-right arrow"></i>
+
+            <!-- Step 3 -->
+            <div class="step-col">
+                <div class="step-header bg-blue-600">3. Sort Node</div>
+                <div class="code-box">
+                    <div class="step-num">3</div>
+                    <span class="keyword">def</span> _start_callback(req, res):<br>
+                    &nbsp;&nbsp;self.running = <span class="keyword">True</span><br>
+                    &nbsp;&nbsp;self.pick_place.run()<br>
+                    &nbsp;&nbsp;res.success = <span class="keyword">True</span><br>
+                    &nbsp;&nbsp;<span class="keyword">return</span> res
+                </div>
+            </div>
+
+            <i class="fas fa-chevron-right arrow"></i>
+
+            <!-- Step 4 -->
+            <div class="step-col">
+                <div class="step-header bg-green-600">4. Driver (C++)</div>
+                <div class="code-box">
+                    <div class="step-num">4</div>
+                    movel_cb(req, res) {<br>
+                    &nbsp;&nbsp;<span class="comment">// Hardware Control</span><br>
+                    &nbsp;&nbsp;Drfl-><span class="func">movel</span>(...);<br>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

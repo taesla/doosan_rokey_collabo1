@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Slide 1: Title</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap">
+    <style>
+        body { font-family: 'Noto Sans KR', sans-serif; background-color: #f1f5f9; }
+        .slide { width: 1280px; height: 720px; background: white; padding: 40px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; position: relative; overflow: hidden; }
+        .bg-pattern { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0.05; background-image: radial-gradient(#334155 1px, transparent 1px); background-size: 20px 20px; z-index: 0; }
+        .content { z-index: 10; width: 100%; }
+        .main-title { font-size: 56px; font-weight: 900; color: #0f172a; margin-bottom: 20px; letter-spacing: -1px; }
+        .sub-title { font-size: 28px; color: #475569; font-weight: 500; margin-bottom: 50px; }
+        .badge-container { display: flex; justify-content: center; gap: 20px; }
+        .badge { background: #f8fafc; border: 2px solid #e2e8f0; padding: 15px 30px; border-radius: 15px; display: flex; align-items: center; gap: 15px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+        .badge i { font-size: 30px; }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="bg-pattern"></div>
+        <div class="content">
+            <div class="mb-10 text-blue-600 font-bold text-xl tracking-widest uppercase">System Architecture Analysis</div>
+            <h1 class="main-title">🤖 ROS2 웹 통합 아키텍처 분석</h1>
+            <p class="sub-title">Doosan Robotics + Flask/SocketIO 기반 스마트 제조 시스템</p>
+            
+            <div class="badge-container">
+                <div class="badge">
+                    <i class="fab fa-python text-yellow-500"></i>
+                    <div class="text-left">
+                        <div class="font-bold text-gray-800 text-lg">Backend</div>
+                        <div class="text-gray-500 text-sm">Flask + ROS2 (rclpy)</div>
+                    </div>
+                </div>
+                <div class="badge">
+                    <i class="fas fa-project-diagram text-blue-500"></i>
+                    <div class="text-left">
+                        <div class="font-bold text-gray-800 text-lg">Middleware</div>
+                        <div class="text-gray-500 text-sm">SocketIO Real-time</div>
+                    </div>
+                </div>
+                <div class="badge">
+                    <i class="fas fa-robot text-gray-700"></i>
+                    <div class="text-left">
+                        <div class="font-bold text-gray-800 text-lg">Hardware</div>
+                        <div class="text-gray-500 text-sm">Doosan M0609</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

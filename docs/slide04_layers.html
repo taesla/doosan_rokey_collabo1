@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Slide 4: Layers</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap">
+    <style>
+        body { font-family: 'Noto Sans KR', sans-serif; }
+        .slide { width: 1280px; height: 720px; background: white; padding: 40px; box-sizing: border-box; display: flex; flex-direction: column; }
+        .header { border-bottom: 3px solid #0f172a; padding-bottom: 15px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: end; }
+        .header h1 { font-size: 36px; font-weight: 900; color: #0f172a; }
+        
+        .layer-container { display: flex; flex-direction: column; gap: 15px; height: 100%; justify-content: center; }
+        .layer { display: flex; align-items: stretch; height: 90px; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05); position: relative; transition: transform 0.2s; }
+        .layer:hover { transform: translateX(10px); }
+        
+        .layer-num { width: 80px; display: flex; justify-content: center; align-items: center; font-size: 24px; font-weight: 900; color: white; }
+        .layer-content { flex: 1; background: white; border: 1px solid; border-left: none; display: flex; align-items: center; padding: 0 30px; justify-content: space-between; }
+        .layer-title { font-size: 20px; font-weight: 800; }
+        .layer-desc { font-size: 16px; color: #64748b; font-weight: 500; }
+        .layer-comps { display: flex; gap: 10px; }
+        .comp { font-size: 12px; padding: 4px 8px; border-radius: 4px; background: #f1f5f9; color: #475569; font-weight: 600; border: 1px solid #cbd5e1; }
+
+        /* Colors */
+        .l5 .layer-num { background: #6366f1; } .l5 .layer-content { border-color: #6366f1; } .l5 .layer-title { color: #6366f1; }
+        .l4 .layer-num { background: #3b82f6; } .l4 .layer-content { border-color: #3b82f6; } .l4 .layer-title { color: #3b82f6; }
+        .l3 .layer-num { background: #0ea5e9; } .l3 .layer-content { border-color: #0ea5e9; } .l3 .layer-title { color: #0ea5e9; }
+        .l2 .layer-num { background: #14b8a6; } .l2 .layer-content { border-color: #14b8a6; } .l2 .layer-title { color: #14b8a6; }
+        .l1 .layer-num { background: #64748b; } .l1 .layer-content { border-color: #64748b; } .l1 .layer-title { color: #64748b; }
+        
+        .arrow { position: absolute; right: -30px; font-size: 24px; color: #cbd5e1; top: 100%; z-index: 10; }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <h1><i class="fas fa-layer-group mr-3"></i>5계층 시스템 아키텍처</h1>
+            <span class="text-xl text-gray-500">Layered Structure</span>
+        </div>
+        <div class="layer-container">
+            <!-- Layer 5 -->
+            <div class="layer l5">
+                <div class="layer-num">5</div>
+                <div class="layer-content">
+                    <div>
+                        <div class="layer-title">Web UI Layer</div>
+                        <div class="layer-desc">사용자 인터페이스 (Browser)</div>
+                    </div>
+                    <div class="layer-comps">
+                        <div class="comp">Chart.js</div>
+                        <div class="comp">SocketIO Client</div>
+                        <div class="comp">Three.js</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Layer 4 -->
+            <div class="layer l4">
+                <div class="layer-num">4</div>
+                <div class="layer-content">
+                    <div>
+                        <div class="layer-title">Web Server Layer</div>
+                        <div class="layer-desc">중계 및 API 처리 (server_node)</div>
+                    </div>
+                    <div class="layer-comps">
+                        <div class="comp">Flask</div>
+                        <div class="comp">SocketIO Server</div>
+                        <div class="comp">Firebase Sync</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Layer 3 -->
+            <div class="layer l3">
+                <div class="layer-num">3</div>
+                <div class="layer-content">
+                    <div>
+                        <div class="layer-title">Application Layer</div>
+                        <div class="layer-desc">비즈니스 로직 (Core Logic)</div>
+                    </div>
+                    <div class="layer-comps">
+                        <div class="comp">sort_node</div>
+                        <div class="comp">recovery_node</div>
+                        <div class="comp">watcher_node</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Layer 2 -->
+            <div class="layer l2">
+                <div class="layer-num">2</div>
+                <div class="layer-content">
+                    <div>
+                        <div class="layer-title">Driver Layer</div>
+                        <div class="layer-desc">하드웨어 추상화 (Driver)</div>
+                    </div>
+                    <div class="layer-comps">
+                        <div class="comp">dsr_controller</div>
+                        <div class="comp">serial_bridge</div>
+                        <div class="comp">DRFL</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Layer 1 -->
+            <div class="layer l1">
+                <div class="layer-num">1</div>
+                <div class="layer-content">
+                    <div>
+                        <div class="layer-title">Hardware Layer</div>
+                        <div class="layer-desc">물리적 장치 (Device)</div>
+                    </div>
+                    <div class="layer-comps">
+                        <div class="comp">Doosan Robot</div>
+                        <div class="comp">Arduino</div>
+                        <div class="comp">Sensors</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

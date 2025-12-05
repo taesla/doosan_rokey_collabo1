@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Slide 2: Packages</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap">
+    <style>
+        body { font-family: 'Noto Sans KR', sans-serif; }
+        .slide { width: 1280px; height: 720px; background: white; padding: 40px; box-sizing: border-box; display: flex; flex-direction: column; }
+        .header { border-bottom: 3px solid #0f172a; padding-bottom: 15px; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: end; }
+        .header h1 { font-size: 36px; font-weight: 900; color: #0f172a; }
+        .grid-container { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; height: 100%; }
+        .card { background: #f8fafc; border-radius: 16px; padding: 25px; border: 1px solid #e2e8f0; display: flex; flex-direction: column; }
+        .card-header { font-size: 22px; font-weight: 700; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+        .pkg-list { display: flex; flex-direction: column; gap: 12px; }
+        .pkg-item { background: white; padding: 12px 15px; border-radius: 8px; border-left: 5px solid; box-shadow: 0 2px 4px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; }
+        .pkg-active { border-left-color: #22c55e; }
+        .pkg-ref { border-left-color: #94a3b8; }
+        .pkg-name { font-weight: 700; color: #334155; font-size: 16px; }
+        .pkg-desc { font-size: 14px; color: #64748b; }
+        
+        .sub-pkg-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+        .sub-pkg { font-size: 13px; padding: 6px 10px; background: #e0f2fe; border-radius: 6px; color: #0369a1; text-align: center; font-weight: 600; }
+        .sub-pkg.unused { background: #f1f5f9; color: #94a3b8; text-decoration: line-through; }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <h1><i class="fas fa-boxes mr-3"></i>패키지 구성 및 사용 현황</h1>
+            <span class="text-xl text-gray-500">Package Ecosystem</span>
+        </div>
+        <div class="grid-container">
+            <div class="card bg-green-50 border-green-200">
+                <div class="card-header text-green-700"><i class="fas fa-check-circle"></i>Active Packages (사용 중)</div>
+                <div class="pkg-list">
+                    <div class="pkg-item pkg-active">
+                        <div>
+                            <div class="pkg-name">dsr_integrated <span class="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded ml-2">CORE</span></div>
+                            <div class="pkg-desc">메인 통합, 분류 노드, 웹 서버, 복구 시스템</div>
+                        </div>
+                        <i class="fas fa-star text-yellow-400"></i>
+                    </div>
+                    <div class="pkg-item pkg-active">
+                        <div>
+                            <div class="pkg-name">arduino_conveyor_bridge</div>
+                            <div class="pkg-desc">Arduino 시리얼 ↔ ROS2 토픽 변환</div>
+                        </div>
+                    </div>
+                    <div class="pkg-item pkg-active">
+                        <div>
+                            <div class="pkg-name">dsr_recovery_watcher</div>
+                            <div class="pkg-desc">드라이버 상태 감시 및 자동 재시작</div>
+                        </div>
+                    </div>
+                    <div class="pkg-item pkg-active">
+                        <div>
+                            <div class="pkg-name">logistics_monitor</div>
+                            <div class="pkg-desc">HTML/CSS/JS 프론트엔드 템플릿</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header text-blue-700"><i class="fas fa-robot"></i>Doosan Robot Packages</div>
+                <div class="pkg-item pkg-active mb-3">
+                    <div class="w-full">
+                        <div class="pkg-name mb-2">doosan-robot2 (Driver Stack)</div>
+                        <div class="sub-pkg-grid">
+                            <div class="sub-pkg">dsr_bringup2</div>
+                            <div class="sub-pkg">dsr_controller2</div>
+                            <div class="sub-pkg">dsr_common2</div>
+                            <div class="sub-pkg">dsr_hardware2</div>
+                            <div class="sub-pkg">dsr_msgs2</div>
+                            <div class="sub-pkg">dsr_description2</div>
+                            <div class="sub-pkg unused">dsr_gazebo2</div>
+                            <div class="sub-pkg unused">dsr_moveit2</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-4 text-sm text-gray-500 p-3 bg-gray-100 rounded">
+                    <i class="fas fa-info-circle mr-2"></i><strong>참조용 패키지:</strong> collision_recovery, archive, manual
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

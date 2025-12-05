@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Slide 9: Education Concepts</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap">
+    <style>
+        body { font-family: 'Noto Sans KR', sans-serif; }
+        .slide { width: 1280px; height: 720px; background: white; padding: 40px; box-sizing: border-box; display: flex; flex-direction: column; }
+        .header { border-bottom: 3px solid #0f172a; padding-bottom: 15px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: end; }
+        .header h1 { font-size: 36px; font-weight: 900; color: #0f172a; }
+        
+        .concept-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 30px; }
+        .concept-card { background: #f8fafc; border-radius: 12px; padding: 25px; border-left: 6px solid #3b82f6; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .cc-title { font-size: 20px; font-weight: 800; color: #1e293b; margin-bottom: 10px; display: flex; align-items: center; }
+        .cc-text { font-size: 16px; color: #475569; line-height: 1.6; }
+        
+        .analogy-box { background: #fffbeb; border: 2px dashed #f59e0b; border-radius: 12px; padding: 20px; text-align: center; }
+        .analogy-title { font-size: 18px; font-weight: 700; color: #b45309; margin-bottom: 15px; }
+        .analogy-grid { display: flex; justify-content: space-around; }
+        .analogy-item { display: flex; flex-direction: column; align-items: center; gap: 5px; }
+        .analogy-icon { font-size: 32px; color: #d97706; }
+        .analogy-text { font-weight: 600; color: #78350f; }
+        .analogy-sub { font-size: 12px; color: #92400e; }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <h1><i class="fas fa-graduation-cap mr-3"></i>ROS2 웹 통합 기초 개념 (For Beginners)</h1>
+            <span class="text-xl text-gray-500">Education</span>
+        </div>
+        
+        <div class="concept-grid">
+            <div class="concept-card">
+                <div class="cc-title"><i class="fas fa-cubes mr-3 text-blue-500"></i>1. ROS2란 무엇인가?</div>
+                <p class="cc-text">
+                    로봇 소프트웨어 개발을 위한 프레임워크입니다. 레고 블록처럼 각각의 기능(노드)을 만들고 서로 조립(통신)하여 로봇을 움직입니다.
+                </p>
+            </div>
+            <div class="concept-card" style="border-left-color: #10b981;">
+                <div class="cc-title"><i class="fas fa-globe mr-3 text-green-500"></i>2. 왜 웹 통합이 필요한가?</div>
+                <p class="cc-text">
+                    ROS2는 검은 화면(터미널)에서 명령어를 쳐야 합니다. 일반인도 쉽게 버튼 하나로 로봇을 제어할 수 있도록 웹 브라우저 화면(UI)을 씌우는 것입니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="analogy-box">
+            <div class="analogy-title">💡 핵심 파일 역할 비유 (Analogy)</div>
+            <div class="analogy-grid">
+                <div class="analogy-item">
+                    <i class="fas fa-brain analogy-icon"></i>
+                    <div class="analogy-text">sort_node.py</div>
+                    <div class="analogy-sub">"뇌" (판단)</div>
+                </div>
+                <div class="analogy-item">
+                    <i class="fas fa-language analogy-icon"></i>
+                    <div class="analogy-text">server_node.py</div>
+                    <div class="analogy-sub">"통역사" (웹↔로봇)</div>
+                </div>
+                <div class="analogy-item">
+                    <i class="fas fa-hand-paper analogy-icon"></i>
+                    <div class="analogy-text">pick_place.py</div>
+                    <div class="analogy-sub">"손기술" (동작)</div>
+                </div>
+                <div class="analogy-item">
+                    <i class="fas fa-id-card analogy-icon"></i>
+                    <div class="analogy-text">socket_handlers.py</div>
+                    <div class="analogy-sub">"안내데스크" (요청접수)</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
